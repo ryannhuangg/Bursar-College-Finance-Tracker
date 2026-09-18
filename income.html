@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Income History - College Finance Tracker</title>
+    <link rel="stylesheet" href="income.css">
+    <script src="currency.js"></script>
+</head>
+<body>
+    <div class="glow-container">
+        <div class="glow-blob color-purple"></div>
+        <div class="glow-blob color-blue"></div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Menu</span>
+            <button class="close-btn" id="closeSidebarBtn">✕</button>
+        </div>
+
+        <div class="sidebar-links">
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('dashboard.html')">Dashboard</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('setup.html')">Financial Setup</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('loan.html')">Loans &amp; Tuition</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('history.html')">Expense History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('income.html')" style="background-color: #1f1f23;">Income History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('settings.html')">Settings</button>
+        </div>
+
+        <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+    </nav>
+
+    <header class="top-bar">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <span class="app-name">College Finance Tracker</span>
+    </header>
+
+    <main class="dashboard-content">
+        <h1>Income History</h1>
+        <p class="subtitle">Review where your money has been coming from.</p>
+
+        <div class="cards-layout" style="height: calc(100% - 80px);">
+            <section class="semester-card history-card">
+                <div class="semester-header" style="margin-bottom: 12px;">
+                    <span class="semester-title">All Income</span>
+                    <div class="header-actions">
+                        <button class="log-income-btn" id="logIncomeBtn">+ Log Income</button>
+                    </div>
+                </div>
+
+                <div class="tabs-container">
+                    <button class="tab-btn active" id="tab-monthly" onclick="setTab('monthly')">Monthly</button>
+                    <button class="tab-btn" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
+                    <button class="tab-btn" id="tab-daily" onclick="setTab('daily')">Daily</button>
+                    <button class="tab-btn" id="tab-all" onclick="setTab('all')">All-Time</button>
+                </div>
+
+                <div class="history-content">
+                    <div class="chart-section" style="flex-direction: column; gap: 24px; align-items: flex-start; justify-content: flex-start;">
+                        <div class="daily-pie-container" id="pieChartContainer" style="margin: 0 auto;"></div>
+                        <div class="pie-legend" id="pieLegendContainer"></div>
+                    </div>
+
+                    <div class="history-table-wrapper">
+                        <table class="recent-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Source</th>
+                                    <th>Amount</th>
+                                    <th style="width: 40px; text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr>
+                                    <td colspan="5" class="empty-recent">Loading history...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="incomeModalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title" id="incomeModalTitleText">Log Income</span>
+                <button class="modal-close-btn" id="closeIncomeModalBtn">✕</button>
+            </div>
+
+            <div class="collapsible-section" id="oneTimeIncomeFields">
+                <div class="field">
+                    <label for="incomeAmount">Amount</label>
+                    <div class="dollar-input">
+                        <span class="dollar-sign">$</span>
+                        <input type="number" id="incomeAmount" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="incomeDescription">Where's it from?</label>
+                    <input type="text" id="incomeDescription" placeholder="Birthday gift, paycheck...">
+                </div>
+
+                <div class="field">
+                    <label>Source</label>
+                    <div class="tag-group" id="incomeTags"></div>
+                </div>
+
+                <p class="inline-warning" id="incomeError"></p>
+
+                <button class="modal-submit-btn" id="submitIncomeBtn">Log Income</button>
+            </div>
+
+            <button class="steady-income-toggle" id="steadyIncomeToggleBtn" type="button">+ Set up steady income</button>
+
+            <div class="steady-income-section collapsible-section collapsed" id="steadyIncomeSection">
+                <div class="steady-income-title-row">
+                    <p class="steady-income-desc">Have a steady source, like a campus job? Set it once with a start date and it'll auto-log itself on payday.</p>
+                    <button class="remove-second-goal-btn" id="deleteSteadyIncomeBtn" type="button" title="Remove this income source" style="display: none;">🗑 Remove</button>
+                </div>
+
+                <div class="field">
+                    <label for="steadyJobName">Job / Source Name</label>
+                    <input type="text" id="steadyJobName" placeholder="Campus library, tutoring...">
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="steadyPayAmount">Pay Amount</label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="steadyPayAmount" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="steadyPayFrequency">Paid</label>
+                        <select id="steadyPayFrequency">
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Every 2 weeks</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="steadyStartDate">First Payday <span class="field-hint">(next one auto-logs on schedule)</span></label>
+                    <input type="date" id="steadyStartDate">
+                </div>
+
+                <p class="inline-warning" id="steadyIncomeError"></p>
+
+                <button class="modal-submit-btn" id="saveSteadyIncomeBtn">Save Steady Income</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="congratsModalOverlay">
+        <div class="modal-card congrats-modal-card">
+            <div class="congrats-icon">🎉</div>
+            <div class="congrats-title" id="congratsTitleText">Congratulations!</div>
+            <p class="congrats-subtitle" id="congratsSubtitleText">Your income has been logged.</p>
+
+            <div class="congrats-limits" id="congratsLimits"></div>
+
+            <button class="modal-submit-btn" id="closeCongratsBtn">Nice!</button>
+        </div>
+    </div>
+    
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <div id="undoToast" class="undo-toast">
+        <span>Income entry deleted.</span>
+        <button id="undoBtn">Undo</button>
+    </div>
+
+    <div id="globalTooltip" class="global-tooltip"></div>
+
+    <script>
+        let undoTimeout = null;
+        let undoType = '';
+        let lastDeletedIncome = null;
+        let lastDeletedIncomeIndex = -1;
+        let currentTab = 'monthly';
+        let editingIncomeId = null;
+
+        let selectedTag = 'Job/Wages';
+        let allCategoriesCache = [];
+        let lastDeletedCategory = null;
+        let lastDeletedCategoryIndex = -1;
+        let lastDeletedSteadyIncome = null;
+
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const signOutBtn = document.getElementById('signOutBtn');
+
+        const DEFAULT_CATEGORIES = [
+            { name: 'Job/Wages', color: '#4ade80' },
+            { name: 'Financial Aid', color: '#0ea5e9' },
+            { name: 'Parent Contribution', color: '#a855f7' },
+            { name: 'Gift', color: '#ec4899' },
+            { name: 'Refund', color: '#eab308' },
+            { name: 'Other', color: '#6b7280' }
+        ];
+
+        function getLocalISO(d) {
+            const offset = d.getTimezoneOffset();
+            const local = new Date(d.getTime() - offset * 60 * 1000);
+            return local.toISOString().split('T')[0];
+        }
+
+        function todayISO() {
+            return getLocalISO(new Date());
+        }
+
+        async function loadCustomCategories() {
+            const response = await window.electronAPI.getUserData('custom_income_categories');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function saveCustomCategories(categories) {
+            await window.electronAPI.setUserData('custom_income_categories', categories);
+        }
+
+        async function getAllCategories() {
+            const custom = await loadCustomCategories();
+            return [...DEFAULT_CATEGORIES, ...custom];
+        }
+
+        async function loadIncome() {
+            const response = await window.electronAPI.getUserData('income');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function saveIncome(income) {
+            await window.electronAPI.setUserData('income', income);
+        }
+
+        async function loadPurchases() {
+            const response = await window.electronAPI.getUserData('purchases');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        function daysBetween(start, end) {
+            if (!start || !end) return 0;
+            const startObj = new Date(start + 'T00:00:00');
+            const endObj = new Date(end + 'T00:00:00');
+            const diff = endObj - startObj;
+            return diff >= 0 ? Math.round(diff / (1000 * 60 * 60 * 24)) + 1 : 0;
+        }
+
+        function getWeightForDate(d, weightFactor) {
+            const day = d.getDay();
+            return (day === 0 || day === 5 || day === 6) ? weightFactor : 1;
+        }
+
+        function calculateWeightRange(startDateObj, endDateObj, weightFactor) {
+            let totalW = 0;
+            let d = new Date(startDateObj);
+            while (d <= endDateObj) {
+                totalW += getWeightForDate(d, weightFactor);
+                d.setDate(d.getDate() + 1);
+            }
+            return totalW;
+        }
+
+        async function getFinancialStats() {
+            const setupResponse = await window.electronAPI.getUserData('financial_setup');
+            if (!setupResponse.success || !setupResponse.value) return null;
+
+            const data = setupResponse.value;
+            const purchases = await loadPurchases();
+            const incomeEntries = await loadIncome();
+            const todayStr = todayISO();
+            const isBeforeStart = todayStr < data.startDate;
+            const isAfterEnd = todayStr > data.endDate;
+            const isBreak = isBeforeStart || isAfterEnd;
+
+            const days = daysBetween(data.startDate, data.endDate);
+            const weeks = days / 7;
+            const months = days / 30.44;
+
+            const end = new Date(data.endDate + 'T00:00:00');
+            const now = new Date(todayStr + 'T00:00:00');
+            const start = new Date(data.startDate + 'T00:00:00');
+            const effectiveStart = now > start ? now : start;
+
+            const daysRemaining = Math.max(0, Math.round((end - effectiveStart) / (1000 * 60 * 60 * 24)) + 1);
+
+            const totalIncomeLogged = incomeEntries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+            const totalIn = (data.checkingSavings || 0) + (data.financialAidRefund || 0) + (data.parentContribution || 0) + totalIncomeLogged;
+            const totalOut = ((data.rentUtilities || 0) * months) + (data.oneTimeExpenses || 0);
+            const netRemaining = totalIn - totalOut;
+
+            const isSurplusFunded = (p) => p.isGoal || p.fromSurplus;
+
+            const allSemesterPurchases = purchases.filter(p => p.date >= data.startDate && p.date <= data.endDate);
+            const semesterPurchases = allSemesterPurchases.filter(p => !isSurplusFunded(p));
+
+            const totalSpent = semesterPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
+            const totalPendingReimbursements = allSemesterPurchases.reduce((sum, p) => sum + (!p.reimbursementSettled ? (Number(p.reimbursement) || 0) : 0), 0);
+
+            const previousPurchases = semesterPurchases.filter(p => p.date < todayStr);
+            const totalSpentBeforeToday = previousPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
+
+            const surplusFundedPurchases = allSemesterPurchases.filter(isSurplusFunded);
+            const totalSpentOnGoals = surplusFundedPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
+
+            const currentNetRunway = netRemaining - totalSpent - totalSpentOnGoals;
+            const runwayRemainingPercent = netRemaining > 0 ? Math.max(0, (currentNetRunway / netRemaining) * 100) : 0;
+
+            const weightFactor = data.weekendWeight || 1;
+            const fullSemesterWeightTotal = calculateWeightRange(start, end, weightFactor);
+            const baseSpendUnit = fullSemesterWeightTotal > 0 ? (netRemaining / fullSemesterWeightTotal) : 0;
+
+            const roundedWeekday = Math.round(baseSpendUnit);
+            const roundedWeekend = Math.round(baseSpendUnit * weightFactor);
+
+            const todayDay = now.getDay();
+            const dailySafeSpend = (todayDay === 0 || todayDay === 5 || todayDay === 6) ? roundedWeekend : roundedWeekday;
+
+            let expectedSpendToDate = 0;
+            let d = new Date(start);
+            while (d < effectiveStart) {
+                const day = d.getDay();
+                expectedSpendToDate += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
+                d.setDate(d.getDate() + 1);
+            }
+
+            const surplusDeficit = (expectedSpendToDate - totalSpentBeforeToday) - totalSpentOnGoals;
+            const isSurplus = surplusDeficit >= 0;
+
+            return {
+                data, purchases, todayStr, isBeforeStart, isAfterEnd, isBreak,
+                days, weeks, months, totalIn, totalOut, netRemaining, totalSpent,
+                daysRemaining, dailySafeSpend, currentNetRunway, runwayRemainingPercent,
+                surplusDeficit, isSurplus, totalPendingReimbursements, roundedWeekday, roundedWeekend, weightFactor,
+                incomeEntries, totalIncomeLogged
+            };
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = str == null ? '' : str;
+            return div.innerHTML;
+        }
+
+        function formatCurrency(amount) {
+            return getCurrencySymbol() + (Number(amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const [year, month, day] = dateString.split('-');
+            return `${month}/${day}/${year}`;
+        }
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            renderHistoryView();
+        }
+
+        function filterIncome(income) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            return income.filter(i => {
+                if (!i.date) return false;
+                const iDate = new Date(i.date + 'T00:00:00');
+
+                if (currentTab === 'all') {
+                    return true;
+                } else if (currentTab === 'daily') {
+                    return iDate.toDateString() === today.toDateString();
+                } else if (currentTab === 'weekly') {
+                    const sevenDaysAgo = new Date(today);
+                    sevenDaysAgo.setDate(today.getDate() - 7);
+                    return iDate >= sevenDaysAgo && iDate <= today;
+                } else if (currentTab === 'monthly') {
+                    return iDate.getMonth() === today.getMonth() && iDate.getFullYear() === today.getFullYear();
+                }
+                return true;
+            });
+        }
+
+        async function renderChart(filteredIncome, categoryColors) {
+            const container = document.getElementById('pieChartContainer');
+            const legendContainer = document.getElementById('pieLegendContainer');
+
+            let timeframeTotal = 0;
+            const categoryTotals = {};
+
+            filteredIncome.forEach(i => {
+                const amt = Number(i.amount) || 0;
+                if (amt > 0) {
+                    timeframeTotal += amt;
+                    categoryTotals[i.tag] = (categoryTotals[i.tag] || 0) + amt;
+                }
+            });
+
+            if (timeframeTotal === 0) {
+                container.innerHTML = `<div class="empty-pie">No income logged.</div>`;
+                legendContainer.innerHTML = '';
+                return;
+            }
+
+            let cumulativePercent = 0;
+            let svgPaths = `<circle r="1" cx="0" cy="0" fill="#26262b"></circle>`;
+            let legendHTML = '';
+
+            const sortedCategoryTotals = Object.entries(categoryTotals).sort((a, b) => a[0].localeCompare(b[0]));
+
+            for (const [tag, amount] of sortedCategoryTotals) {
+                const color = categoryColors[tag] || '#6b7280';
+                const slicePercent = amount / timeframeTotal;
+
+                legendHTML += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: ${color}"></div>
+                        <span>${escapeHtml(tag)}</span>
+                    </div>
+                `;
+
+                if (slicePercent >= 1) {
+                    svgPaths += `<circle r="1" cx="0" cy="0" fill="${color}" class="pie-slice" data-desc="${escapeHtml(tag)} Total" data-amount="${amount.toFixed(2)}" data-tag="${escapeHtml(tag)}"></circle>`;
+                    continue;
+                }
+
+                const startX = Math.cos(2 * Math.PI * cumulativePercent);
+                const startY = Math.sin(2 * Math.PI * cumulativePercent);
+
+                cumulativePercent += slicePercent;
+
+                const endX = Math.cos(2 * Math.PI * cumulativePercent);
+                const endY = Math.sin(2 * Math.PI * cumulativePercent);
+
+                const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
+                const pathData = `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
+
+                svgPaths += `<path d="${pathData}" fill="${color}" stroke="#131316" stroke-width="0.015" class="pie-slice" data-desc="${escapeHtml(tag)} Total" data-amount="${amount.toFixed(2)}" data-tag="${escapeHtml(tag)}"></path>`;
+            }
+
+            container.innerHTML = `<svg viewBox="-1 -1 2 2" class="daily-pie-chart">${svgPaths}</svg>`;
+            legendContainer.innerHTML = legendHTML;
+
+            const globalTooltip = document.getElementById('globalTooltip');
+            document.querySelectorAll('.pie-slice').forEach(slice => {
+                slice.addEventListener('mousemove', (e) => {
+                    const desc = slice.getAttribute('data-desc');
+                    const amt = slice.getAttribute('data-amount');
+                    const tag = slice.getAttribute('data-tag');
+                    if (desc && amt && tag) {
+                        globalTooltip.innerHTML = `<strong>${desc}</strong><br/>${tag} - ${formatCurrency(amt)}`;
+                        globalTooltip.style.left = (e.clientX + 15) + 'px';
+                        globalTooltip.style.top = (e.clientY + 15) + 'px';
+                        globalTooltip.classList.add('show');
+                    }
+                });
+                slice.addEventListener('mouseout', () => {
+                    globalTooltip.classList.remove('show');
+                });
+            });
+        }
+
+        async function renderHistoryTable(filteredIncome, categoryColors) {
+            const tbody = document.getElementById('historyTableBody');
+
+            if (filteredIncome.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-recent">No income found for this timeframe.</td></tr>`;
+                return;
+            }
+
+            filteredIncome.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let rowsHTML = '';
+            filteredIncome.forEach(i => {
+                const color = categoryColors[i.tag] || '#6b7280';
+
+                rowsHTML += `
+                    <tr>
+                        <td>${formatDate(i.date)}</td>
+                        <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(i.description)}">${escapeHtml(i.description)}</td>
+                        <td>
+                            <div class="recent-tag-badge">
+                                <div class="legend-color" style="background-color: ${color}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></div>
+                                ${escapeHtml(i.tag)}
+                            </div>
+                        </td>
+                        <td>${formatCurrency(i.amount)}</td>
+                        <td style="text-align: right;">
+                            <div class="row-actions">
+                                <button class="edit-purchase-btn" data-id="${i.id}" aria-label="Edit income">✎</button>
+                                <button class="delete-purchase-btn" data-id="${i.id}" aria-label="Delete income">✕</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rowsHTML;
+
+            document.querySelectorAll('.edit-purchase-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const iid = e.currentTarget.getAttribute('data-id');
+                    const currentIncome = await loadIncome();
+                    const entry = currentIncome.find(i => i.id === iid);
+                    if (entry) openIncomeModal(entry);
+                });
+            });
+
+            document.querySelectorAll('.delete-purchase-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const iid = e.currentTarget.getAttribute('data-id');
+                    const currentIncome = await loadIncome();
+                    const iIndex = currentIncome.findIndex(i => i.id === iid);
+                    if (iIndex !== -1) {
+                        lastDeletedIncome = currentIncome[iIndex];
+                        lastDeletedIncomeIndex = iIndex;
+                        currentIncome.splice(iIndex, 1);
+                        await saveIncome(currentIncome);
+                        renderHistoryView();
+                        showUndoToast('income');
+                    }
+                });
+            });
+        }
+
+        async function renderHistoryView() {
+            const allIncome = await loadIncome();
+            const filteredIncome = filterIncome(allIncome);
+
+            const allCategories = await getAllCategories();
+            const categoryColors = {};
+            allCategories.forEach(c => { categoryColors[c.name] = c.color; });
+
+            await renderHistoryTable(filteredIncome, categoryColors);
+            await renderChart(filteredIncome, categoryColors);
+        }
+
+        function fireConfetti() {
+            const container = document.getElementById('confettiContainer');
+            container.innerHTML = '';
+            const colors = ['#6366f1', '#3b82f6', '#4ade80', '#eab308', '#ec4899', '#a855f7'];
+            for (let i = 0; i < 60; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + 'vw';
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDelay = Math.random() * 2 + 's';
+                piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                container.appendChild(piece);
+            }
+            setTimeout(() => { container.innerHTML = ''; }, 4000);
+        }
+
+        let paymentAudioCtx = null;
+
+        document.addEventListener('click', function unlockPaymentAudio() {
+            if (!paymentAudioCtx) {
+                paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (paymentAudioCtx.state === 'suspended') paymentAudioCtx.resume();
+            document.removeEventListener('click', unlockPaymentAudio);
+        }, { once: true });
+
+        function playBrassNote(ctx, freq, startTime, length, peakGain) {
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 2200;
+            filter.Q.value = 0.7;
+
+            const gainNode = ctx.createGain();
+            filter.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            [-4, 4].forEach((detuneCents) => {
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                osc.detune.value = detuneCents;
+                osc.connect(filter);
+                osc.start(startTime);
+                osc.stop(startTime + length + 0.05);
+            });
+
+            const attack = 0.03;
+            const release = length * 0.55;
+            gainNode.gain.setValueAtTime(0.0001, startTime);
+            gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + attack);
+            gainNode.gain.setValueAtTime(peakGain, startTime + length - release);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
+        }
+
+        function playFanfareSound() {
+            if (localStorage.getItem('soundsMuted') === 'true') return;
+            try {
+                if (!paymentAudioCtx) {
+                    paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const ctx = paymentAudioCtx;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const notes = [
+                    { freq: 392.00, start: 0,    length: 0.16, gain: 0.16 },
+                    { freq: 523.25, start: 0.18, length: 0.16, gain: 0.16 },
+                    { freq: 659.25, start: 0.36, length: 0.5,  gain: 0.20 }
+                ];
+
+                notes.forEach(({ freq, start, length, gain }) => {
+                    playBrassNote(ctx, freq, ctx.currentTime + start, length, gain);
+                });
+            } catch (e) {
+            }
+        }
+
+        const congratsTitleText = document.getElementById('congratsTitleText');
+        const congratsSubtitleText = document.getElementById('congratsSubtitleText');
+        const congratsLimits = document.getElementById('congratsLimits');
+        const congratsModalOverlay = document.getElementById('congratsModalOverlay');
+
+        async function showCongratsModal(customTitle, customSubtitle) {
+            const stats = await getFinancialStats();
+            if (!stats) return;
+
+            const { roundedWeekday, roundedWeekend, weightFactor } = stats;
+
+            congratsTitleText.innerText = customTitle || 'Congratulations!';
+
+            if (weightFactor !== 1) {
+                congratsSubtitleText.innerText = customSubtitle || "Your income has been logged. Here are your updated safe-spend limits:";
+                congratsLimits.innerHTML = `
+                    <div class="congrats-limit-box">
+                        <span class="congrats-limit-value">${getCurrencySymbol()}${roundedWeekday.toLocaleString()}</span>
+                        <span class="congrats-limit-label">Weekday Limit</span>
+                    </div>
+                    <div class="congrats-limit-box">
+                        <span class="congrats-limit-value">${getCurrencySymbol()}${roundedWeekend.toLocaleString()}</span>
+                        <span class="congrats-limit-label">Weekend Limit</span>
+                    </div>
+                `;
+            } else {
+                congratsSubtitleText.innerText = customSubtitle || "Your income has been logged. Here's your updated daily safe-spend limit:";
+                congratsLimits.innerHTML = `
+                    <div class="congrats-limit-box">
+                        <span class="congrats-limit-value">${getCurrencySymbol()}${roundedWeekday.toLocaleString()}</span>
+                        <span class="congrats-limit-label">Daily Limit</span>
+                    </div>
+                `;
+            }
+
+            congratsModalOverlay.classList.add('visible');
+            fireConfetti();
+            playFanfareSound();
+        }
+
+        document.getElementById('closeCongratsBtn').addEventListener('click', () => {
+            congratsModalOverlay.classList.remove('visible');
+        });
+        congratsModalOverlay.addEventListener('click', (e) => {
+            if (e.target === congratsModalOverlay) congratsModalOverlay.classList.remove('visible');
+        });
+
+        function showUndoToast(type) {
+            undoType = type;
+            const toast = document.getElementById('undoToast');
+            const toastText = toast.querySelector('span');
+
+            if (type === 'income') {
+                toastText.innerText = 'Income entry deleted.';
+            } else if (type === 'category') {
+                toastText.innerText = 'Category deleted.';
+            } else if (type === 'steadyIncome') {
+                toastText.innerText = 'Steady income removed.';
+            }
+
+            toast.classList.add('visible');
+            if (undoTimeout) clearTimeout(undoTimeout);
+            undoTimeout = setTimeout(() => {
+                toast.classList.remove('visible');
+                if (type === 'income') lastDeletedIncome = null;
+                if (type === 'category') lastDeletedCategory = null;
+                if (type === 'steadyIncome') lastDeletedSteadyIncome = null;
+            }, 5000);
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', async () => {
+            if (undoType === 'income' && lastDeletedIncome !== null) {
+                const income = await loadIncome();
+                income.splice(lastDeletedIncomeIndex, 0, lastDeletedIncome);
+                await saveIncome(income);
+                renderHistoryView();
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedIncome = null;
+            } else if (undoType === 'category' && lastDeletedCategory !== null) {
+                const customCategories = await loadCustomCategories();
+                const insertAt = Math.max(0, Math.min(lastDeletedCategoryIndex, customCategories.length));
+                customCategories.splice(insertAt, 0, lastDeletedCategory);
+                await saveCustomCategories(customCategories);
+                await renderCategoryTags(true);
+                renderHistoryView();
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedCategory = null;
+            } else if (undoType === 'steadyIncome' && lastDeletedSteadyIncome !== null) {
+                await saveSteadyIncome(lastDeletedSteadyIncome);
+
+                steadyJobNameInput.value = lastDeletedSteadyIncome.jobName || '';
+                steadyPayAmountInput.value = lastDeletedSteadyIncome.payAmount || '';
+                steadyPayFrequencySelect.value = lastDeletedSteadyIncome.payFrequency || 'weekly';
+                steadyStartDateInput.value = lastDeletedSteadyIncome.startDate || '';
+                deleteSteadyIncomeBtn.style.display = lastDeletedSteadyIncome.jobName ? 'inline-block' : 'none';
+                setSteadyIncomeExpanded(!!lastDeletedSteadyIncome.jobName);
+
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedSteadyIncome = null;
+            }
+            if (undoTimeout) clearTimeout(undoTimeout);
+        });
+
+        const incomeModalOverlay = document.getElementById('incomeModalOverlay');
+        const closeIncomeModalBtn = document.getElementById('closeIncomeModalBtn');
+        const submitIncomeBtn = document.getElementById('submitIncomeBtn');
+        const incomeAmountInput = document.getElementById('incomeAmount');
+        const incomeDescriptionInput = document.getElementById('incomeDescription');
+        const incomeError = document.getElementById('incomeError');
+        const steadyJobNameInput = document.getElementById('steadyJobName');
+        const steadyPayAmountInput = document.getElementById('steadyPayAmount');
+        const steadyPayFrequencySelect = document.getElementById('steadyPayFrequency');
+        const steadyStartDateInput = document.getElementById('steadyStartDate');
+        const steadyIncomeError = document.getElementById('steadyIncomeError');
+        const saveSteadyIncomeBtn = document.getElementById('saveSteadyIncomeBtn');
+        const deleteSteadyIncomeBtn = document.getElementById('deleteSteadyIncomeBtn');
+        const steadyIncomeToggleBtn = document.getElementById('steadyIncomeToggleBtn');
+        const steadyIncomeSection = document.getElementById('steadyIncomeSection');
+        const oneTimeIncomeFields = document.getElementById('oneTimeIncomeFields');
+
+        function setSteadyIncomeExpanded(expanded) {
+            steadyIncomeSection.classList.toggle('collapsed', !expanded);
+            oneTimeIncomeFields.classList.toggle('collapsed', expanded);
+            steadyIncomeToggleBtn.innerText = expanded ? '− Hide steady income setup' : '+ Set up steady income';
+        }
+
+        steadyIncomeToggleBtn.addEventListener('click', () => {
+            const isExpanded = !steadyIncomeSection.classList.contains('collapsed');
+            setSteadyIncomeExpanded(!isExpanded);
+        });
+
+        const FREQUENCY_DAYS = {
+            weekly: 7,
+            biweekly: 14,
+            monthly: 30
+        };
+
+        function addInterval(dateString, frequency) {
+            const days = FREQUENCY_DAYS[frequency] || 7;
+            const d = new Date(dateString + 'T00:00:00');
+            d.setDate(d.getDate() + days);
+            return getLocalISO(d);
+        }
+
+        async function loadSteadyIncome() {
+            const response = await window.electronAPI.getUserData('steady_income');
+            const value = (response.success && response.value) ? response.value : null;
+            return (value && value.payAmount && value.startDate) ? value : null;
+        }
+
+        async function saveSteadyIncome(data) {
+            await window.electronAPI.setUserData('steady_income', data);
+        }
+
+        let steadyIncomeProcessingChain = Promise.resolve();
+        function processSteadyIncomePaydays() {
+            const result = steadyIncomeProcessingChain.then(() => processSteadyIncomePaydaysInner());
+            steadyIncomeProcessingChain = result.catch(() => {});
+            return result;
+        }
+
+        async function processSteadyIncomePaydaysInner() {
+            const steady = await loadSteadyIncome();
+            if (!steady || !steady.payAmount || !steady.startDate) return;
+
+            const today = todayISO();
+            let nextPayday = steady.nextPaydayDate || steady.startDate;
+            let changed = false;
+            let paydaysLogged = 0;
+            let totalLogged = 0;
+            const income = await loadIncome();
+
+            while (nextPayday && nextPayday <= today) {
+                income.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    amount: steady.payAmount,
+                    description: steady.jobName || 'Steady Income',
+                    tag: 'Job/Wages',
+                    date: nextPayday
+                });
+                totalLogged += Number(steady.payAmount) || 0;
+                paydaysLogged++;
+                nextPayday = addInterval(nextPayday, steady.payFrequency);
+                changed = true;
+            }
+
+            if (changed) {
+                steady.nextPaydayDate = nextPayday;
+                await saveIncome(income);
+                await saveSteadyIncome(steady);
+
+                const subtitle = paydaysLogged > 1
+                    ? `Successfully auto-logged ${formatCurrency(totalLogged)} from ${paydaysLogged} paydays for ${escapeHtml(steady.jobName || 'your steady income')}.`
+                    : `Successfully auto-logged ${formatCurrency(totalLogged)} from ${escapeHtml(steady.jobName || 'your steady income')}.`;
+                showCongratsModal('Payday!', subtitle);
+            }
+        }
+
+        async function renderCategoryTags(preserveSelection) {
+            allCategoriesCache = await getAllCategories();
+            const incomeTagsContainer = document.getElementById('incomeTags');
+            const previousSelected = selectedTag;
+            const stillExists = allCategoriesCache.some(c => c.name === previousSelected);
+
+            const sortedCategories = [...allCategoriesCache].sort((a, b) => {
+                if (a.name === 'Other') return 1;
+                if (b.name === 'Other') return -1;
+                return a.name.localeCompare(b.name);
+            });
+
+            if (!preserveSelection || !stillExists) {
+                selectedTag = sortedCategories.length > 0 ? sortedCategories[0].name : '';
+            }
+
+            incomeTagsContainer.innerHTML = sortedCategories.map(cat => {
+                const isDefault = DEFAULT_CATEGORIES.some(d => d.name === cat.name);
+                const isSelected = cat.name === selectedTag ? ' selected' : '';
+                return `
+                    <div class="tag-btn-wrap">
+                        <button type="button" class="tag-btn${isSelected}" data-tag="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</button>
+                        ${isDefault ? '' : `<span class="tag-delete-x" data-tag="${escapeHtml(cat.name)}" title="Delete category">✕</span>`}
+                    </div>
+                `;
+            }).join('');
+
+            incomeTagsContainer.querySelectorAll('.tag-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    incomeTagsContainer.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedTag = btn.dataset.tag;
+                });
+            });
+
+            incomeTagsContainer.querySelectorAll('.tag-delete-x').forEach(delBtn => {
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const tagToDelete = delBtn.dataset.tag;
+
+                    const customCategories = await loadCustomCategories();
+                    const cIndex = customCategories.findIndex(c => c.name === tagToDelete);
+                    if (cIndex === -1) return;
+
+                    lastDeletedCategory = customCategories[cIndex];
+                    lastDeletedCategoryIndex = cIndex;
+
+                    customCategories.splice(cIndex, 1);
+                    await saveCustomCategories(customCategories);
+                    await renderCategoryTags(true);
+                    renderHistoryView();
+                    showUndoToast('category');
+                });
+            });
+        }
+
+        async function openIncomeModal(entry = null) {
+            editingIncomeId = entry ? entry.id : null;
+
+            incomeError.innerText = '';
+
+            const modalTitleText = document.getElementById('incomeModalTitleText');
+
+            if (entry) {
+                modalTitleText.innerText = 'Edit Income';
+                submitIncomeBtn.innerText = 'Save Changes';
+
+                incomeAmountInput.value = entry.amount;
+                incomeDescriptionInput.value = entry.description || '';
+
+                selectedTag = entry.tag;
+                await renderCategoryTags(true);
+            } else {
+                modalTitleText.innerText = 'Log Income';
+                submitIncomeBtn.innerText = 'Log Income';
+
+                incomeAmountInput.value = '';
+                incomeDescriptionInput.value = '';
+
+                await renderCategoryTags(false);
+            }
+
+            const steady = await loadSteadyIncome();
+            steadyIncomeError.innerText = '';
+            steadyJobNameInput.value = steady ? steady.jobName || '' : '';
+            steadyPayAmountInput.value = steady ? steady.payAmount || '' : '';
+            steadyPayFrequencySelect.value = steady ? steady.payFrequency || 'weekly' : 'weekly';
+            steadyStartDateInput.value = steady ? steady.startDate || '' : '';
+            deleteSteadyIncomeBtn.style.display = steady && steady.jobName ? 'inline-block' : 'none';
+            setSteadyIncomeExpanded(false);
+
+            incomeModalOverlay.classList.add('visible');
+        }
+
+        function closeIncomeModal() {
+            incomeModalOverlay.classList.remove('visible');
+            editingIncomeId = null;
+        }
+
+        document.getElementById('logIncomeBtn').addEventListener('click', () => openIncomeModal());
+        closeIncomeModalBtn.addEventListener('click', closeIncomeModal);
+        incomeModalOverlay.addEventListener('click', (e) => {
+            if (e.target === incomeModalOverlay) closeIncomeModal();
+        });
+
+        submitIncomeBtn.addEventListener('click', async () => {
+            const amount = Number(incomeAmountInput.value);
+            const description = incomeDescriptionInput.value.trim();
+
+            if (!amount || amount <= 0) {
+                incomeError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
+                return;
+            }
+            if (!description) {
+                incomeError.innerText = 'Add a short description.';
+                return;
+            }
+
+            const isEditing = !!editingIncomeId;
+
+            submitIncomeBtn.disabled = true;
+            submitIncomeBtn.innerText = 'Saving...';
+
+            const income = await loadIncome();
+
+            if (isEditing) {
+                const existing = income.find(i => i.id === editingIncomeId);
+                if (existing) {
+                    existing.amount = amount;
+                    existing.description = description;
+                    existing.tag = selectedTag;
+                }
+            } else {
+                income.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    amount,
+                    description,
+                    tag: selectedTag,
+                    date: todayISO()
+                });
+            }
+            await saveIncome(income);
+
+            submitIncomeBtn.disabled = false;
+            submitIncomeBtn.innerText = isEditing ? 'Save Changes' : 'Log Income';
+            closeIncomeModal();
+            renderHistoryView();
+
+            if (!isEditing) {
+                showCongratsModal('Income Logged!', `Successfully added ${formatCurrency(amount)} to your history.`);
+            } else {
+                showCongratsModal('Changes Saved!', `Your income entry has been successfully updated.`);
+            }
+        });
+
+        saveSteadyIncomeBtn.addEventListener('click', async () => {
+            const jobName = steadyJobNameInput.value.trim();
+            const payAmount = Number(steadyPayAmountInput.value);
+            const payFrequency = steadyPayFrequencySelect.value;
+            const startDate = steadyStartDateInput.value || todayISO();
+
+            if (!jobName) {
+                steadyIncomeError.innerText = 'Add a name for this income source.';
+                return;
+            }
+            if (!payAmount || payAmount <= 0) {
+                steadyIncomeError.innerText = `Enter a pay amount greater than ${getCurrencySymbol()}0.`;
+                return;
+            }
+
+            steadyIncomeError.innerText = '';
+            saveSteadyIncomeBtn.disabled = true;
+            saveSteadyIncomeBtn.innerText = 'Saving...';
+
+            const existingSteady = await loadSteadyIncome();
+            const startDateChanged = !existingSteady || existingSteady.startDate !== startDate;
+            const steady = {
+                jobName,
+                payAmount,
+                payFrequency,
+                startDate,
+                nextPaydayDate: startDateChanged ? startDate : (existingSteady.nextPaydayDate || startDate)
+            };
+            await saveSteadyIncome(steady);
+            await processSteadyIncomePaydays();
+
+            saveSteadyIncomeBtn.disabled = false;
+            saveSteadyIncomeBtn.innerText = 'Save Steady Income';
+            closeIncomeModal();
+            renderHistoryView();
+        });
+
+        deleteSteadyIncomeBtn.addEventListener('click', async () => {
+            const steady = await loadSteadyIncome();
+
+            lastDeletedSteadyIncome = steady;
+
+            await saveSteadyIncome({});
+
+            steadyJobNameInput.value = '';
+            steadyPayAmountInput.value = '';
+            steadyPayFrequencySelect.value = 'weekly';
+            steadyStartDateInput.value = '';
+            steadyIncomeError.innerText = '';
+            deleteSteadyIncomeBtn.style.display = 'none';
+            setSteadyIncomeExpanded(false);
+
+            showUndoToast('steadyIncome');
+        });
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            sidebarOverlay.classList.add('visible');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+        }
+
+        hamburgerBtn.addEventListener('click', openSidebar);
+        closeSidebarBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        signOutBtn.addEventListener('click', async () => {
+            await window.electronAPI.signOut();
+            window.electronAPI.changePage('login.html');
+        });
+
+        processSteadyIncomePaydays().then(renderHistoryView);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loans & Tuition - College Finance Tracker</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="loan.css">
+    <script src="currency.js"></script>
+</head>
+<body>
+    <div class="glow-container">
+        <div class="glow-blob color-purple"></div>
+        <div class="glow-blob color-blue"></div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Menu</span>
+            <button class="close-btn" id="closeSidebarBtn">✕</button>
+        </div>
+
+        <div class="sidebar-links">
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('dashboard.html')">Dashboard</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('setup.html')">Financial Setup</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('loan.html')">Loans &amp; Tuition</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('history.html')">Expense History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('income.html')">Income History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('settings.html')">Settings</button>
+        </div>
+
+        <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+    </nav>
+
+    <header class="top-bar">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <span class="app-name">College Finance Tracker</span>
+    </header>
+
+    <main class="dashboard-content">
+        <h1>Loans &amp; Tuition</h1>
+        <p class="subtitle">The big-picture debt sitting behind your daily budget.</p>
+
+        <section class="semester-card" id="totalDebtCard">
+            <div class="semester-loading">Loading your loans...</div>
+        </section>
+
+        <div class="loans-section-header">
+            <span class="semester-title">Your Loans</span>
+            <button class="log-purchase-btn" id="addLoanBtn">+ Add Loan</button>
+        </div>
+
+        <div class="loan-cards-grid" id="loanCardsGrid"></div>
+    </main>
+
+    <div class="modal-overlay" id="loanModalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title" id="loanModalTitleText">Add a Loan</span>
+                <button class="modal-close-btn" id="closeLoanModalBtn">✕</button>
+            </div>
+
+            <div class="field">
+                <label for="loanName">Name</label>
+                <input type="text" id="loanName" placeholder="Federal Direct Loan, Spring Tuition...">
+            </div>
+
+            <div class="field">
+                <label for="loanType">Type</label>
+                <select id="loanType">
+                    <option value="Student Loan">Student Loan</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Auto Loan">Auto Loan</option>
+                    <option value="Personal Loan">Personal Loan</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="loanPrincipal">Principal Amount</label>
+                <div class="dollar-input">
+                    <span class="dollar-sign">$</span>
+                    <input type="number" id="loanPrincipal" min="0" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="loanInterestRate">Interest Rate (Annual %)</label>
+                <input type="number" id="loanInterestRate" min="0" step="0.01" placeholder="0.00">
+            </div>
+
+            <div class="field">
+                <label for="loanDueDate">Due Date</label>
+                <input type="date" id="loanDueDate">
+            </div>
+
+            <p class="inline-warning" id="loanError"></p>
+
+            <button class="modal-submit-btn" id="submitLoanBtn">Save Loan</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="paymentModalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title" id="paymentModalTitleText">Make a Payment</span>
+                <button class="modal-close-btn" id="closePaymentModalBtn">✕</button>
+            </div>
+
+            <p class="category-limit-note" id="paymentBalanceNote" style="margin: -8px 0 16px 0;"></p>
+
+            <div class="field">
+                <label for="paymentAmount">Amount</label>
+                <div class="dollar-input">
+                    <span class="dollar-sign">$</span>
+                    <input type="number" id="paymentAmount" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <p class="overpay-note" id="paymentOverpayNote" style="display: none;"></p>
+            </div>
+
+            <div class="field">
+                <label for="paymentNote">Note <span style="color: #71717a; text-transform: none; letter-spacing: normal;">(optional)</span></label>
+                <input type="text" id="paymentNote" placeholder="March payment, extra principal...">
+            </div>
+
+            <p class="inline-warning" id="paymentError"></p>
+
+            <button class="modal-submit-btn" id="submitPaymentBtn">Log Payment</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="paymentCongratsModalOverlay">
+        <div class="modal-card congrats-modal-card">
+            <div class="congrats-icon" id="paymentCongratsIcon">💸</div>
+            <div class="congrats-title" id="paymentCongratsTitle">Payment Logged!</div>
+            <p class="congrats-subtitle" id="paymentCongratsSubtitle">Nice work chipping away at your debt.</p>
+
+            <div class="congrats-limits" id="paymentCongratsLimits"></div>
+
+            <button class="modal-submit-btn" id="closePaymentCongratsBtn">Nice!</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="historyModalOverlay">
+        <div class="modal-card" style="width: 480px;">
+            <div class="modal-header">
+                <span class="modal-title" id="historyModalTitleText">Payment History</span>
+                <button class="modal-close-btn" id="closeHistoryModalBtn">✕</button>
+            </div>
+
+            <div class="recent-table-wrapper" style="max-height: 320px;">
+                <table class="recent-table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th style="text-align: right;">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <p class="empty-recent" id="historyEmptyNote" style="display: none;">No payments logged against this loan yet.</p>
+        </div>
+    </div>
+
+    <div id="undoToast" class="undo-toast">
+        <span>Loan deleted.</span>
+        <button id="undoBtn">Undo</button>
+    </div>
+
+    <script>
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const signOutBtn = document.getElementById('signOutBtn');
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            sidebarOverlay.classList.add('visible');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+        }
+
+        hamburgerBtn.addEventListener('click', openSidebar);
+        closeSidebarBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        signOutBtn.addEventListener('click', async () => {
+            await window.electronAPI.signOut();
+            window.electronAPI.changePage('login.html');
+        });
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = str == null ? '' : str;
+            return div.innerHTML;
+        }
+
+        function formatCurrency(amount) {
+            return getCurrencySymbol() + (Number(amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function getLocalISO(d) {
+            const offset = d.getTimezoneOffset();
+            const local = new Date(d.getTime() - offset * 60 * 1000);
+            return local.toISOString().split('T')[0];
+        }
+
+        function todayISO() {
+            return getLocalISO(new Date());
+        }
+
+        let undoTimeout = null;
+        let undoType = '';
+
+        let lastDeletedLiability = null;
+        let lastDeletedLiabilityIndex = -1;
+
+        let lastDeletedPayment = null;
+        let lastDeletedPaymentIndex = -1;
+
+        function showUndoToast(type) {
+            undoType = type;
+            const toast = document.getElementById('undoToast');
+            const toastText = toast.querySelector('span');
+
+            if (type === 'loan') {
+                toastText.innerText = 'Loan deleted.';
+            } else if (type === 'payment') {
+                toastText.innerText = 'Payment deleted.';
+            }
+
+            toast.classList.add('visible');
+            if (undoTimeout) clearTimeout(undoTimeout);
+            undoTimeout = setTimeout(() => {
+                toast.classList.remove('visible');
+                if (type === 'loan') lastDeletedLiability = null;
+                if (type === 'payment') lastDeletedPayment = null;
+            }, 5000);
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', async () => {
+            if (undoType === 'loan' && lastDeletedLiability !== null) {
+                const liabilities = await loadLiabilities();
+                const insertAt = Math.max(0, Math.min(lastDeletedLiabilityIndex, liabilities.length));
+                liabilities.splice(insertAt, 0, lastDeletedLiability);
+                await saveLiabilities(liabilities);
+
+                loadLoansPage();
+
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedLiability = null;
+            } else if (undoType === 'payment' && lastDeletedPayment !== null) {
+                const purchases = await loadPurchases();
+                const insertAt = Math.max(0, Math.min(lastDeletedPaymentIndex, purchases.length));
+                purchases.splice(insertAt, 0, lastDeletedPayment);
+                await savePurchases(purchases);
+
+                loadLoansPage();
+                if (historyModalOverlay.classList.contains('visible')) {
+                    renderHistoryTable();
+                }
+
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedPayment = null;
+            }
+            if (undoTimeout) clearTimeout(undoTimeout);
+        });
+        async function loadLiabilities() {
+            const response = await window.electronAPI.getUserData('liabilities');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function saveLiabilities(liabilities) {
+            await window.electronAPI.setUserData('liabilities', liabilities);
+        }
+
+        async function loadPurchases() {
+            const response = await window.electronAPI.getUserData('purchases');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function savePurchases(purchases) {
+            await window.electronAPI.setUserData('purchases', purchases);
+        }
+
+        function calculateLoanState(liability, purchases) {
+            const rate = Number(liability.interestRate) || 0;
+            const dailyRate = rate / 100 / 365;
+
+            let principal = Number(liability.principalAmount) || 0;
+            let accruedInterest = 0;
+
+            const start = liability.dateAdded ? new Date(liability.dateAdded + 'T00:00:00') : new Date(todayISO() + 'T00:00:00');
+            const today = new Date(todayISO() + 'T00:00:00');
+
+            const payments = purchases
+                .filter(p => p.liabilityId === liability.id)
+                .map(p => ({ date: new Date((p.date || todayISO()) + 'T00:00:00'), amount: Number(p.amount) || 0 }))
+                .sort((a, b) => a.date - b.date);
+
+            function applyPayment(amount) {
+                if (amount <= accruedInterest) {
+                    accruedInterest -= amount;
+                } else {
+                    amount -= accruedInterest;
+                    accruedInterest = 0;
+                    principal = Math.max(0, principal - amount);
+                }
+            }
+
+            let paymentIndex = 0;
+            const cursor = new Date(start);
+
+            while (cursor <= today) {
+                while (paymentIndex < payments.length && payments[paymentIndex].date.getTime() === cursor.getTime()) {
+                    applyPayment(payments[paymentIndex].amount);
+                    paymentIndex++;
+                }
+
+                if (cursor < today && principal > 0 && dailyRate > 0) {
+                    accruedInterest += principal * dailyRate;
+                }
+
+                cursor.setDate(cursor.getDate() + 1);
+            }
+
+            while (paymentIndex < payments.length) {
+                applyPayment(payments[paymentIndex].amount);
+                paymentIndex++;
+            }
+
+            const paidSoFar = payments.reduce((sum, p) => sum + p.amount, 0);
+            const balance = Math.max(0, principal + accruedInterest);
+
+            return { principal, accruedInterest, balance, paidSoFar };
+        }
+
+        function calculateCurrentBalance(liability, purchases) {
+            return calculateLoanState(liability, purchases).balance;
+        }
+
+        function isPaidOff(balance) {
+            return balance <= 0.01;
+        }
+
+        function formatDueDate(dueDate) {
+            if (!dueDate) return 'No due date set';
+            const d = new Date(dueDate + 'T00:00:00');
+            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function formatPaymentDate(dateStr) {
+            if (!dateStr) return '—';
+            const d = new Date(dateStr + 'T00:00:00');
+            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function getPaymentsForLoan(liabilityId, purchases) {
+            return purchases
+                .filter(p => p.liabilityId === liabilityId)
+                .slice()
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        }
+
+        async function loadLoansPage() {
+            const [liabilities, purchases] = await Promise.all([loadLiabilities(), loadPurchases()]);
+            renderTotalDebtCard(liabilities, purchases);
+            renderLoanCards(liabilities, purchases);
+        }
+
+        function renderTotalDebtCard(liabilities, purchases) {
+            const container = document.getElementById('totalDebtCard');
+
+            if (liabilities.length === 0) {
+                container.innerHTML = `
+                    <div class="setup-prompt">
+                        <div>
+                            <span class="setup-prompt-title">No loans tracked yet</span>
+                            <span class="setup-prompt-desc">Add a loan or tuition balance to see your total outstanding debt here.</span>
+                        </div>
+                        <button class="setup-prompt-btn" id="emptyStateAddLoanBtn">Add a Loan</button>
+                    </div>
+                `;
+                document.getElementById('emptyStateAddLoanBtn').addEventListener('click', () => openLoanModal());
+                return;
+            }
+
+            const balances = liabilities.map(l => calculateCurrentBalance(l, purchases));
+            const totalOutstanding = balances.reduce((sum, b) => sum + b, 0);
+            const totalPrincipal = liabilities.reduce((sum, l) => sum + (Number(l.principalAmount) || 0), 0);
+            const totalPaid = purchases
+                .filter(p => p.liabilityId && liabilities.some(l => l.id === p.liabilityId))
+                .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+            const paidOffCount = balances.filter(b => isPaidOff(b)).length;
+
+            container.innerHTML = `
+                <div class="semester-header">
+                    <span class="semester-title">Total Outstanding Debt</span>
+                </div>
+                <div class="semester-stats">
+                    <div class="semester-stat">
+                        <span class="semester-stat-value" style="color: ${totalOutstanding > 0 ? '#f87171' : '#4ade80'};">${formatCurrency(totalOutstanding)}</span>
+                        <span class="semester-stat-label">Across ${liabilities.length} ${liabilities.length === 1 ? 'Loan' : 'Loans'}</span>
+                    </div>
+                    <div class="semester-stat">
+                        <span class="semester-stat-value">${formatCurrency(totalPrincipal)}</span>
+                        <span class="semester-stat-label">Original Principal</span>
+                    </div>
+                    <div class="semester-stat">
+                        <span class="semester-stat-value" style="color: #4ade80;">${formatCurrency(totalPaid)}</span>
+                        <span class="semester-stat-label">Paid Toward Debt</span>
+                    </div>
+                    ${paidOffCount > 0 ? `
+                    <div class="semester-stat">
+                        <span class="semester-stat-value" style="color: #4ade80;">${paidOffCount}</span>
+                        <span class="semester-stat-label">Paid Off</span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        function renderLoanCards(liabilities, purchases) {
+            const grid = document.getElementById('loanCardsGrid');
+
+            if (liabilities.length === 0) {
+                grid.innerHTML = '';
+                return;
+            }
+
+            const withStates = liabilities.map(liability => ({
+                liability,
+                state: calculateLoanState(liability, purchases)
+            }));
+
+            const active = withStates.filter(x => !isPaidOff(x.state.balance));
+            const paidOff = withStates.filter(x => isPaidOff(x.state.balance));
+
+            const activeCardsHTML = active.map(({ liability, state }) => {
+                const originalPrincipal = Number(liability.principalAmount) || 0;
+                const currentBalance = state.balance;
+                const paidSoFar = state.paidSoFar;
+                const everOwed = paidSoFar + currentBalance;
+                const payoffPercent = everOwed > 0 ? Math.min(100, Math.max(0, (paidSoFar / everOwed) * 100)) : 0;
+                const paymentCount = getPaymentsForLoan(liability.id, purchases).length;
+
+                return `
+                    <div class="loan-card">
+                        <div class="loan-card-header">
+                            <div>
+                                <span class="loan-card-name">${escapeHtml(liability.name)}</span>
+                                <span class="loan-type-badge">${escapeHtml(liability.type)}</span>
+                            </div>
+                            <div class="row-actions">
+                                <button class="edit-purchase-btn edit-loan-btn" data-id="${liability.id}" title="Edit">Edit</button>
+                                <button class="delete-purchase-btn delete-loan-btn" data-id="${liability.id}" title="Delete">Delete</button>
+                            </div>
+                        </div>
+
+                        <div class="loan-balance-value" style="color: #f87171;">
+                            ${formatCurrency(currentBalance)}
+                        </div>
+                        <div class="semester-stat-label">Current Balance</div>
+
+                        <div class="daily-bar-track" style="margin: 14px 0;">
+                            <div class="daily-bar-fill" style="width: ${payoffPercent}%; background: linear-gradient(90deg, #4ade80, #16a34a);"></div>
+                        </div>
+
+                        <div class="loan-card-footer">
+                            <div class="loan-card-footer-stat">
+                                <span class="semester-stat-label">Original Principal</span>
+                                <span>${formatCurrency(originalPrincipal)}</span>
+                            </div>
+                            <div class="loan-card-footer-stat">
+                                <span class="semester-stat-label">Interest Rate</span>
+                                <span>${(Number(liability.interestRate) || 0)}%</span>
+                            </div>
+                            <div class="loan-card-footer-stat">
+                                <span class="semester-stat-label">Due</span>
+                                <span>${formatDueDate(liability.dueDate)}</span>
+                            </div>
+                        </div>
+
+                        <div class="loan-card-actions">
+                            <button class="modal-submit-btn pay-loan-btn" data-id="${liability.id}">Make a Payment</button>
+                            <button class="afford-check-btn history-loan-btn" data-id="${liability.id}">History${paymentCount > 0 ? ` (${paymentCount})` : ''}</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const paidOffRowsHTML = paidOff.map(({ liability }) => `
+                <div class="loan-row-paid">
+                    <div class="loan-row-paid-info">
+                        <span class="loan-card-name">${escapeHtml(liability.name)}</span>
+                        <span class="loan-type-badge">${escapeHtml(liability.type)}</span>
+                        <span class="paid-off-badge">Paid Off</span>
+                    </div>
+                    <div class="row-actions">
+                        <span class="semester-stat-label" style="margin-right: 8px;">${formatCurrency(liability.principalAmount)} principal</span>
+                        <button class="edit-purchase-btn history-loan-btn" data-id="${liability.id}" title="Payment History">History</button>
+                        <button class="edit-purchase-btn edit-loan-btn" data-id="${liability.id}" title="Edit">Edit</button>
+                        <button class="delete-purchase-btn delete-loan-btn" data-id="${liability.id}" title="Delete">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+
+            grid.innerHTML = `
+                ${activeCardsHTML}
+                ${paidOff.length > 0 ? `
+                    <div class="paid-off-section">
+                        <span class="semester-title" style="font-size: 14px;">Paid Off (${paidOff.length})</span>
+                        <div class="loan-rows-paid-list">${paidOffRowsHTML}</div>
+                    </div>
+                ` : ''}
+            `;
+
+            grid.querySelectorAll('.edit-loan-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const liabilities = await loadLiabilities();
+                    const liability = liabilities.find(l => l.id === btn.dataset.id);
+                    if (liability) openLoanModal(liability);
+                });
+            });
+
+            grid.querySelectorAll('.delete-loan-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const liabilities = await loadLiabilities();
+                    const lIndex = liabilities.findIndex(l => l.id === btn.dataset.id);
+                    if (lIndex === -1) return;
+
+                    lastDeletedLiability = liabilities[lIndex];
+                    lastDeletedLiabilityIndex = lIndex;
+
+                    liabilities.splice(lIndex, 1);
+                    await saveLiabilities(liabilities);
+                    loadLoansPage();
+                    showUndoToast('loan');
+                });
+            });
+
+            grid.querySelectorAll('.pay-loan-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const liabilities = await loadLiabilities();
+                    const liability = liabilities.find(l => l.id === btn.dataset.id);
+                    if (!liability) return;
+                    const purchases = await loadPurchases();
+                    const balance = calculateCurrentBalance(liability, purchases);
+                    if (isPaidOff(balance)) {
+                        loadLoansPage();
+                        return;
+                    }
+                    openPaymentModal(liability, balance);
+                });
+            });
+
+            grid.querySelectorAll('.history-loan-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const liabilities = await loadLiabilities();
+                    const liability = liabilities.find(l => l.id === btn.dataset.id);
+                    if (liability) openHistoryModal(liability);
+                });
+            });
+        }
+
+        const loanModalOverlay = document.getElementById('loanModalOverlay');
+        const loanError = document.getElementById('loanError');
+        let editingLoanId = null;
+
+        function openLoanModal(liability = null) {
+            editingLoanId = liability ? liability.id : null;
+            loanError.innerText = '';
+
+            const titleText = document.getElementById('loanModalTitleText');
+            const submitBtn = document.getElementById('submitLoanBtn');
+
+            if (liability) {
+                titleText.innerText = 'Edit Loan';
+                submitBtn.innerText = 'Save Changes';
+                document.getElementById('loanName').value = liability.name || '';
+                document.getElementById('loanType').value = liability.type || 'Student Loan';
+                document.getElementById('loanPrincipal').value = liability.principalAmount || '';
+                document.getElementById('loanInterestRate').value = liability.interestRate || '';
+                document.getElementById('loanDueDate').value = liability.dueDate || '';
+            } else {
+                titleText.innerText = 'Add a Loan';
+                submitBtn.innerText = 'Save Loan';
+                document.getElementById('loanName').value = '';
+                document.getElementById('loanType').value = 'Student Loan';
+                document.getElementById('loanPrincipal').value = '';
+                document.getElementById('loanInterestRate').value = '';
+                document.getElementById('loanDueDate').value = '';
+            }
+
+            loanModalOverlay.classList.add('visible');
+        }
+
+        function closeLoanModal() {
+            loanModalOverlay.classList.remove('visible');
+            editingLoanId = null;
+        }
+
+        document.getElementById('addLoanBtn').addEventListener('click', () => openLoanModal());
+        document.getElementById('closeLoanModalBtn').addEventListener('click', closeLoanModal);
+        loanModalOverlay.addEventListener('click', (e) => {
+            if (e.target === loanModalOverlay) closeLoanModal();
+        });
+
+        document.getElementById('submitLoanBtn').addEventListener('click', async () => {
+            const name = document.getElementById('loanName').value.trim();
+            const type = document.getElementById('loanType').value;
+            const principalAmount = Number(document.getElementById('loanPrincipal').value);
+            const interestRate = Number(document.getElementById('loanInterestRate').value) || 0;
+            const dueDate = document.getElementById('loanDueDate').value;
+
+            if (!name) {
+                loanError.innerText = 'Give this loan a name.';
+                return;
+            }
+            if (!principalAmount || principalAmount <= 0) {
+                loanError.innerText = `Enter a principal amount greater than ${getCurrencySymbol()}0.`;
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitLoanBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Saving...';
+
+            const liabilities = await loadLiabilities();
+            const isEditing = !!editingLoanId;
+
+            if (isEditing) {
+                const existing = liabilities.find(l => l.id === editingLoanId);
+                if (existing) {
+                    existing.name = name;
+                    existing.type = type;
+                    existing.principalAmount = principalAmount;
+                    existing.interestRate = interestRate;
+                    existing.dueDate = dueDate;
+                }
+            } else {
+                liabilities.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    name,
+                    type,
+                    principalAmount,
+                    interestRate,
+                    dueDate,
+                    dateAdded: todayISO()
+                });
+            }
+
+            await saveLiabilities(liabilities);
+
+            submitBtn.disabled = false;
+            submitBtn.innerText = isEditing ? 'Save Changes' : 'Save Loan';
+            closeLoanModal();
+            loadLoansPage();
+        });
+
+        const paymentModalOverlay = document.getElementById('paymentModalOverlay');
+        const paymentError = document.getElementById('paymentError');
+        const paymentOverpayNote = document.getElementById('paymentOverpayNote');
+        const paymentAmountInput = document.getElementById('paymentAmount');
+        let payingLoanId = null;
+        let editingPaymentId = null;
+        let payingLoanBalance = null;
+        let payingLoanCache = null;
+
+        function updateOverpayNote() {
+            const amount = Number(paymentAmountInput.value);
+            if (amount > 0 && payingLoanBalance != null && amount > payingLoanBalance) {
+                const excess = amount - payingLoanBalance;
+                paymentOverpayNote.innerText = `This is ${formatCurrency(excess)} more than the remaining balance — the extra won't apply to this loan.`;
+                paymentOverpayNote.style.display = 'block';
+            } else {
+                paymentOverpayNote.innerText = '';
+                paymentOverpayNote.style.display = 'none';
+            }
+        }
+
+        paymentAmountInput.addEventListener('input', updateOverpayNote);
+
+        function openPaymentModal(liability, balanceExcludingThisPayment, existingPurchase = null) {
+            payingLoanId = liability.id;
+            editingPaymentId = existingPurchase ? existingPurchase.id : null;
+            payingLoanBalance = balanceExcludingThisPayment;
+            payingLoanCache = liability;
+
+            paymentError.innerText = '';
+
+            const titleText = document.getElementById('paymentModalTitleText');
+            const submitBtn = document.getElementById('submitPaymentBtn');
+            const balanceNote = document.getElementById('paymentBalanceNote');
+
+            if (existingPurchase) {
+                titleText.innerText = `Edit Payment: ${liability.name}`;
+                submitBtn.innerText = 'Save Changes';
+                paymentAmountInput.value = existingPurchase.amount;
+                document.getElementById('paymentNote').value = existingPurchase.description || '';
+                balanceNote.innerText = `Remaining balance without this payment: ${formatCurrency(balanceExcludingThisPayment)}`;
+            } else {
+                titleText.innerText = `Pay: ${liability.name}`;
+                submitBtn.innerText = 'Log Payment';
+                paymentAmountInput.value = '';
+                document.getElementById('paymentNote').value = '';
+                balanceNote.innerText = `Remaining balance: ${formatCurrency(balanceExcludingThisPayment)}`;
+            }
+
+            updateOverpayNote();
+            paymentModalOverlay.classList.add('visible');
+        }
+
+        function closePaymentModal() {
+            paymentModalOverlay.classList.remove('visible');
+            payingLoanId = null;
+            editingPaymentId = null;
+            payingLoanBalance = null;
+            payingLoanCache = null;
+        }
+
+        document.getElementById('closePaymentModalBtn').addEventListener('click', closePaymentModal);
+        paymentModalOverlay.addEventListener('click', (e) => {
+            if (e.target === paymentModalOverlay) closePaymentModal();
+        });
+
+        document.getElementById('submitPaymentBtn').addEventListener('click', async () => {
+            const amount = Number(paymentAmountInput.value);
+            const note = document.getElementById('paymentNote').value.trim();
+
+            if (!amount || amount <= 0) {
+                paymentError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
+                return;
+            }
+            if (!payingLoanId) {
+                paymentError.innerText = 'Something went wrong - close this and try again.';
+                return;
+            }
+
+            const isEditing = !!editingPaymentId;
+            const submitBtn = document.getElementById('submitPaymentBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Saving...';
+
+            const purchases = await loadPurchases();
+
+            if (isEditing) {
+                const existing = purchases.find(p => p.id === editingPaymentId);
+                if (existing) {
+                    existing.amount = amount;
+                    existing.description = note || 'Loan payment';
+                    existing.fromSurplus = true;
+                }
+            } else {
+                purchases.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    amount,
+                    description: note || 'Loan payment',
+                    tag: 'Debt Payment',
+                    date: todayISO(),
+                    fromSurplus: true,
+                    liabilityId: payingLoanId
+                });
+            }
+            await savePurchases(purchases);
+
+            const paidLoan = payingLoanCache;
+            const newBalance = paidLoan ? calculateCurrentBalance(paidLoan, purchases) : null;
+
+            submitBtn.disabled = false;
+            submitBtn.innerText = isEditing ? 'Save Changes' : 'Log Payment';
+            closePaymentModal();
+            loadLoansPage();
+            if (paidLoan && newBalance != null) {
+                showPaymentCongrats(paidLoan, newBalance);
+            }
+        });
+
+        const paymentCongratsModalOverlay = document.getElementById('paymentCongratsModalOverlay');
+        const closePaymentCongratsBtn = document.getElementById('closePaymentCongratsBtn');
+        const paymentCongratsIcon = document.getElementById('paymentCongratsIcon');
+        const paymentCongratsTitle = document.getElementById('paymentCongratsTitle');
+        const paymentCongratsSubtitle = document.getElementById('paymentCongratsSubtitle');
+        const paymentCongratsLimits = document.getElementById('paymentCongratsLimits');
+
+        function showPaymentCongrats(liability, newBalance) {
+            const paidOff = isPaidOff(newBalance);
+
+            paymentCongratsIcon.innerText = paidOff ? '🎉' : '💸';
+            paymentCongratsTitle.innerText = paidOff ? 'Loan Paid Off!' : 'Payment Logged!';
+            paymentCongratsSubtitle.innerText = paidOff
+                ? `You've fully paid off ${liability.name}. Great work!`
+                : `Nice work chipping away at ${liability.name}. Here's your updated balance:`;
+
+            paymentCongratsLimits.innerHTML = `
+                <div class="congrats-limit-box">
+                    <span class="congrats-limit-value" style="color: ${paidOff ? '#4ade80' : '#f87171'};">${formatCurrency(newBalance)}</span>
+                    <span class="congrats-limit-label">Remaining Balance</span>
+                </div>
+            `;
+
+            paymentCongratsModalOverlay.classList.add('visible');
+            launchConfetti();
+            playPaymentSound();
+        }
+
+        function closePaymentCongratsModal() {
+            paymentCongratsModalOverlay.classList.remove('visible');
+        }
+
+        closePaymentCongratsBtn.addEventListener('click', closePaymentCongratsModal);
+        paymentCongratsModalOverlay.addEventListener('click', (e) => {
+            if (e.target === paymentCongratsModalOverlay) closePaymentCongratsModal();
+        });
+
+        function launchConfetti() {
+            const colors = ['#4ade80', '#6366f1', '#f59e0b', '#f87171', '#38bdf8', '#facc15'];
+            const container = document.createElement('div');
+            container.className = 'confetti-container';
+            document.body.appendChild(container);
+
+            const pieceCount = 90;
+            for (let i = 0; i < pieceCount; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = `${Math.random() * 100}vw`;
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDuration = `${2.2 + Math.random() * 1.6}s`;
+                piece.style.animationDelay = `${Math.random() * 0.4}s`;
+                piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+                if (Math.random() > 0.5) {
+                    piece.style.borderRadius = '50%';
+                }
+                container.appendChild(piece);
+            }
+
+            setTimeout(() => {
+                container.remove();
+            }, 4500);
+        }
+
+        let paymentAudioCtx = null;
+
+        document.addEventListener('click', function unlockPaymentAudio() {
+            if (!paymentAudioCtx) {
+                paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (paymentAudioCtx.state === 'suspended') paymentAudioCtx.resume();
+            document.removeEventListener('click', unlockPaymentAudio);
+        }, { once: true });
+
+        function playBrassNote(ctx, freq, startTime, length, peakGain) {
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 2200;
+            filter.Q.value = 0.7;
+
+            const gainNode = ctx.createGain();
+            filter.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            [-4, 4].forEach((detuneCents) => {
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                osc.detune.value = detuneCents;
+                osc.connect(filter);
+                osc.start(startTime);
+                osc.stop(startTime + length + 0.05);
+            });
+
+            const attack = 0.03;
+            const release = length * 0.55;
+            gainNode.gain.setValueAtTime(0.0001, startTime);
+            gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + attack);
+            gainNode.gain.setValueAtTime(peakGain, startTime + length - release);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
+        }
+
+        function playPaymentSound() {
+            if (localStorage.getItem('soundsMuted') === 'true') return;
+            try {
+                if (!paymentAudioCtx) {
+                    paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const ctx = paymentAudioCtx;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const notes = [
+                    { freq: 392.00, start: 0,    length: 0.16, gain: 0.16 },
+                    { freq: 523.25, start: 0.18, length: 0.16, gain: 0.16 },
+                    { freq: 659.25, start: 0.36, length: 0.5,  gain: 0.20 }
+                ];
+
+                notes.forEach(({ freq, start, length, gain }) => {
+                    playBrassNote(ctx, freq, ctx.currentTime + start, length, gain);
+                });
+            } catch (e) {
+            }
+        }
+        let historyLoanId = null;
+        let historyLoanCache = null;
+
+        async function openHistoryModal(liability) {
+            historyLoanId = liability.id;
+            historyLoanCache = liability;
+            document.getElementById('historyModalTitleText').innerText = `Payment History: ${liability.name}`;
+            await renderHistoryTable();
+            historyModalOverlay.classList.add('visible');
+        }
+
+        function closeHistoryModal() {
+            historyModalOverlay.classList.remove('visible');
+            historyLoanId = null;
+            historyLoanCache = null;
+        }
+
+        document.getElementById('closeHistoryModalBtn').addEventListener('click', closeHistoryModal);
+        historyModalOverlay.addEventListener('click', (e) => {
+            if (e.target === historyModalOverlay) closeHistoryModal();
+        });
+
+        async function renderHistoryTable() {
+            const purchases = await loadPurchases();
+            const payments = getPaymentsForLoan(historyLoanId, purchases);
+            const tbody = document.getElementById('historyTableBody');
+            const emptyNote = document.getElementById('historyEmptyNote');
+            const table = document.getElementById('historyTable');
+
+            if (payments.length === 0) {
+                tbody.innerHTML = '';
+                table.style.display = 'none';
+                emptyNote.style.display = 'block';
+                return;
+            }
+            table.style.display = 'table';
+            emptyNote.style.display = 'none';
+
+            tbody.innerHTML = payments.map(p => `
+                <tr>
+                    <td>${formatPaymentDate(p.date)}</td>
+                    <td>${escapeHtml(p.description || '')}</td>
+                    <td style="text-align: right;">${formatCurrency(p.amount)}</td>
+                    <td>
+                        <div class="row-actions">
+                            <button class="edit-purchase-btn history-edit-btn" data-id="${p.id}" title="Edit">Edit</button>
+                            <button class="delete-purchase-btn history-delete-btn" data-id="${p.id}" title="Delete">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            tbody.querySelectorAll('.history-edit-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const purchases = await loadPurchases();
+                    const purchase = purchases.find(p => p.id === btn.dataset.id);
+                    if (!purchase || !historyLoanCache) return;
+
+                    const balanceIncludingThisPayment = calculateCurrentBalance(historyLoanCache, purchases) + (Number(purchase.amount) || 0);
+
+                    closeHistoryModal();
+                    openPaymentModal(historyLoanCache, balanceIncludingThisPayment, purchase);
+                });
+            });
+
+            tbody.querySelectorAll('.history-delete-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const purchases = await loadPurchases();
+                    const pIndex = purchases.findIndex(p => p.id === btn.dataset.id);
+                    if (pIndex === -1) return;
+
+                    lastDeletedPayment = purchases[pIndex];
+                    lastDeletedPaymentIndex = pIndex;
+
+                    purchases.splice(pIndex, 1);
+                    await savePurchases(purchases);
+                    await renderHistoryTable();
+                    loadLoansPage();
+                    showUndoToast('payment');
+                });
+            });
+        }
+
+        loadLoansPage();
+    </script>
+</body>
+</html>

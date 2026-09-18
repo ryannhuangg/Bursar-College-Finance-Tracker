@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - College Finance Tracker</title>
+    <link rel="stylesheet" href="aurora.css">
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <div class="aurora-bg">
+        <div class="aurora-layer aurora-layer-1"></div>
+        <div class="aurora-layer aurora-layer-2"></div>
+        <div class="aurora-layer aurora-layer-3"></div>
+        <div class="aurora-grain"></div>
+        <div class="aurora-vignette"></div>
+    </div>
+    <script src="aurora.js"></script>
+
+    <main class="auth-content">
+        <div class="login-container">
+            <h2>Welcome Back!</h2>
+            <p>You're one step closer to tracking your college finances.</p>
+
+            <div class="input-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="name@school.edu">
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" placeholder="••••••••">
+                    <button type="button" class="toggle-password" data-target="password">Show</button>
+                </div>
+            </div>
+
+            <div class="remember-me-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="rememberMe">
+                    Remember Me
+                </label>
+            </div>
+
+            <button id="loginBtn" class="primary-btn">Log In</button>
+            <div class="separator"> 
+                <span>or</span>
+            </div>
+
+            <div class="button-group">
+                <button id="googleBtn" class="google-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <span>Log in with Google</span>
+                </button>
+                <button id="signUpBtn" onclick="window.electronAPI.changePage('signup.html')" class="google-btn">Sign Up</button>
+            </div>
+
+            <p class="error-msg" id="errorMsg"></p>
+            
+            <button class="back-btn" onclick="window.location.href='index.html'">← Back</button>
+        </div>
+    </main>
+
+    <script>
+        const loginBtn = document.getElementById('loginBtn');
+        const googleBtn = document.getElementById('googleBtn');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const rememberMeInput = document.getElementById('rememberMe');
+        const errorMsg = document.getElementById('errorMsg');
+
+        loginBtn.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const rememberMe = rememberMeInput.checked;
+
+            if (!email || !password) {
+                errorMsg.innerText = "Please fill in all fields.";
+                return;
+            }
+
+            errorMsg.style.color = "";
+            errorMsg.innerText = "Logging in...";
+            
+            const response = await window.electronAPI.attemptLogin(email, password, rememberMe);
+            
+            if (response.success) {
+                errorMsg.style.color = "green";
+                errorMsg.innerText = "Success! Loading dashboard...";
+                setTimeout(() => {
+                    window.electronAPI.changePage('dashboard.html');
+                }, 2000);
+            } else {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = response.error;
+            }
+        });
+        
+        googleBtn.addEventListener('click', () => {
+            window.electronAPI.startGoogleAuth('login');
+        });
+
+        window.electronAPI.onGoogleAuthStatus((payload) => {
+            if (payload.status === 'pending') {
+                errorMsg.style.color = "";
+                errorMsg.innerText = payload.message;
+            } else if (payload.status === 'success') {
+                errorMsg.style.color = "green";
+                errorMsg.innerText = payload.message;
+            } else if (payload.status === 'error') {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = payload.message;
+            }
+        });
+
+        document.querySelectorAll('.toggle-password').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.dataset.target);
+                const isHidden = target.type === 'password';
+                target.type = isHidden ? 'text' : 'password';
+                btn.innerText = isHidden ? 'Hide' : 'Show';
+            });
+        });
+    </script>
+</body>
+</html>

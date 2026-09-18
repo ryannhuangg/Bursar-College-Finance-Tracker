@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense History - College Finance Tracker</title>
+    <link rel="stylesheet" href="history.css">
+    <script src="currency.js"></script>
+</head>
+<body>
+    <div class="glow-container">
+        <div class="glow-blob color-purple"></div>
+        <div class="glow-blob color-blue"></div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Menu</span>
+            <button class="close-btn" id="closeSidebarBtn">✕</button>
+        </div>
+
+        <div class="sidebar-links">
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('dashboard.html')">Dashboard</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('setup.html')">Financial Setup</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('loan.html')">Loans &amp; Tuition</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('history.html')" style="background-color: #1f1f23;">Expense History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('income.html')">Income History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('settings.html')">Settings</button>
+        </div>
+
+        <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+    </nav>
+
+    <header class="top-bar">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <span class="app-name">College Finance Tracker</span>
+    </header>
+
+    <main class="dashboard-content">
+        <h1>Expense History</h1>
+        <p class="subtitle">Review your past purchases, categories, and reimbursements.</p>
+
+        <div class="cards-layout" style="height: calc(100% - 80px);">
+            <section class="semester-card history-card">
+                <div class="semester-header" style="margin-bottom: 12px;">
+                    <span class="semester-title">All Transactions</span>
+                    <div class="header-actions">
+                        <button class="afford-check-btn" id="affordCheckBtn">Can I Afford This?</button>
+                        <button class="log-purchase-btn" id="logPurchaseBtn">+ Log Purchase</button>
+                    </div>
+                </div>
+                
+                <div class="tabs-container">
+                    <button class="tab-btn active" id="tab-monthly" onclick="setTab('monthly')">Monthly</button>
+                    <button class="tab-btn" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
+                    <button class="tab-btn" id="tab-daily" onclick="setTab('daily')">Daily</button>
+                    <button class="tab-btn" id="tab-all" onclick="setTab('all')">All-Time</button>
+                </div>
+
+                <div class="history-content">
+                    <div class="chart-section" style="flex-direction: column; gap: 24px; align-items: flex-start; justify-content: flex-start;">
+                        <div class="daily-pie-container" id="pieChartContainer" style="margin: 0 auto;"></div>
+                        <div class="pie-legend" id="pieLegendContainer"></div>
+                    </div>
+                    
+                    <div class="history-table-wrapper">
+                        <table class="recent-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th>Cost</th>
+                                    <th>Status</th>
+                                    <th style="width: 40px; text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr>
+                                    <td colspan="6" class="empty-recent">Loading history...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="purchaseModalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title" id="purchaseModalTitleText">Log a Purchase</span>
+                <button class="modal-close-btn" id="closePurchaseModalBtn">✕</button>
+            </div>
+
+            <div class="collapsible-section" id="oneTimePurchaseFields">
+                <div class="field">
+                    <label for="purchaseAmount">Amount</label>
+                    <div class="dollar-input">
+                        <span class="dollar-sign">$</span>
+                        <input type="number" id="purchaseAmount" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="purchaseDescription">What was it?</label>
+                    <input type="text" id="purchaseDescription" placeholder="Coffee, groceries...">
+                </div>
+
+                <div class="field" id="categoryField">
+                    <label>Category</label>
+                    <div class="tag-group" id="purchaseTags"></div>
+                </div>
+
+                <div class="field">
+                    <label>Fund This With</label>
+                    <div class="tag-group" id="fundSourceGroup">
+                        <button type="button" class="tag-btn selected" data-source="daily">Daily Budget</button>
+                        <button type="button" class="tag-btn" data-source="surplus">Surplus</button>
+                    </div>
+                    <p class="category-limit-note" id="fundSourceNote"></p>
+                </div>
+
+                <div class="field-checkbox">
+                    <input type="checkbox" id="purchaseSplitToggle">
+                    <label for="purchaseSplitToggle">Split this purchase</label>
+                </div>
+
+                <div class="field" id="reimbursementField" style="display: none;">
+                    <label for="purchaseReimbursement">Expected Reimbursement</label>
+                    <div class="dollar-input">
+                        <span class="dollar-sign">$</span>
+                        <input type="number" id="purchaseReimbursement" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                <p class="inline-warning" id="purchaseError"></p>
+
+                <button class="modal-submit-btn" id="submitPurchaseBtn">Log Purchase</button>
+            </div>
+
+            <button class="steady-income-toggle" id="subscriptionToggleBtn" type="button">+ Set up a subscription</button>
+
+            <div class="steady-income-section collapsible-section collapsed" id="subscriptionSection">
+                <div class="steady-income-title-row">
+                    <p class="steady-income-desc">Have a recurring subscription, like a gym membership? Set it once and it'll auto-charge itself on the billing date.</p>
+                </div>
+
+                <div id="subscriptionListContainer"></div>
+
+                <div class="field">
+                    <label for="subscriptionName">Subscription Name</label>
+                    <input type="text" id="subscriptionName" placeholder="Spotify, gym membership...">
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="subscriptionAmount">Amount</label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="subscriptionAmount" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="subscriptionFrequency">Billed</label>
+                        <select id="subscriptionFrequency">
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="subscriptionStartDate">First Billing Date <span class="field-hint">(next one auto-charges on schedule)</span></label>
+                    <input type="date" id="subscriptionStartDate">
+                </div>
+
+                <p class="inline-warning" id="subscriptionError"></p>
+
+                <button class="modal-submit-btn" id="saveSubscriptionBtn">Add Subscription</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="affordModalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title">Can I Afford This?</span>
+                <button class="modal-close-btn" id="closeAffordModalBtn">✕</button>
+            </div>
+            <p class="steady-income-desc" style="margin: -8px 0 16px 0;">Have a party or last-minute plans? Check if you can afford it and see exactly how it'll affect your budget before you spend.</p>
+
+            <div class="field">
+                <label for="affordAmount">Amount</label>
+                <div class="dollar-input">
+                    <span class="dollar-sign">$</span>
+                    <input type="number" id="affordAmount" min="0" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="affordDescription">What's it for? <span style="color: #71717a; text-transform: none; letter-spacing: normal;">(optional)</span></label>
+                <input type="text" id="affordDescription" placeholder="Concert tickets, new shoes...">
+            </div>
+
+            <p class="inline-warning" id="affordError"></p>
+
+            <button class="modal-submit-btn" id="checkAffordBtn">Check</button>
+
+            <div class="afford-result" id="affordResult" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div id="undoToast" class="undo-toast">
+        <span>Purchase deleted.</span>
+        <button id="undoBtn">Undo</button>
+    </div>
+
+    <div id="globalTooltip" class="global-tooltip"></div>
+
+    <script>
+        let undoTimeout = null;
+        let undoType = '';
+        let lastDeletedPurchase = null;
+        let lastDeletedPurchaseIndex = -1;
+        let currentTab = 'monthly';
+        let editingPurchaseId = null;
+
+        let selectedTag = 'Food';
+        let allCategoriesCache = [];
+        let lastDeletedCategory = null;
+        let lastDeletedCategoryIndex = -1;
+        let selectedFundSource = 'daily';
+
+        function renderFundSourceSelector() {
+            document.querySelectorAll('#fundSourceGroup .tag-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.source === selectedFundSource);
+            });
+        }
+
+        document.querySelectorAll('#fundSourceGroup .tag-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedFundSource = btn.dataset.source;
+                renderFundSourceSelector();
+            });
+        });
+
+        async function updateFundSourceNote() {
+            const note = document.getElementById('fundSourceNote');
+            const stats = await getFinancialStats();
+            if (!stats || stats.isBreak) {
+                note.innerText = '';
+                return;
+            }
+            note.innerText = stats.isSurplus
+                ? `You currently have ${getCurrencySymbol()}${Math.round(stats.surplusDeficit).toLocaleString()} in surplus available.`
+                : `You're currently ${getCurrencySymbol()}${Math.round(Math.abs(stats.surplusDeficit)).toLocaleString()} in deficit — drawing from surplus isn't recommended right now.`;
+        }
+
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const signOutBtn = document.getElementById('signOutBtn');
+
+        const DEFAULT_CATEGORIES = [
+            { name: 'Food', color: '#f59e0b' },
+            { name: 'Transit', color: '#0ea5e9' },
+            { name: 'Educational', color: '#eab308' },
+            { name: 'Extracurriculars', color: '#ec4899' },
+            { name: 'Fun', color: '#a855f7' },
+            { name: 'Necessity', color: '#3b82f6' },
+            { name: 'Other', color: '#6b7280' }
+        ];
+        const DEBT_PAYMENT_COLOR = '#ef4444';
+        const GOAL_PURCHASE_COLOR = '#6366f1';
+        const SUBSCRIPTION_COLOR = '#14b8a6';
+
+        function getLocalISO(d) {
+            const offset = d.getTimezoneOffset();
+            const local = new Date(d.getTime() - offset * 60 * 1000);
+            return local.toISOString().split('T')[0];
+        }
+
+        function todayISO() {
+            return getLocalISO(new Date());
+        }
+
+        function daysBetween(start, end) {
+            if (!start || !end) return 0;
+            const startObj = new Date(start + 'T00:00:00');
+            const endObj = new Date(end + 'T00:00:00');
+            const diff = endObj - startObj;
+            return diff >= 0 ? Math.round(diff / (1000 * 60 * 60 * 24)) + 1 : 0;
+        }
+
+        function getWeightForDate(d, weightFactor) {
+            const day = d.getDay();
+            return (day === 0 || day === 5 || day === 6) ? weightFactor : 1;
+        }
+
+        function calculateWeightRange(startDateObj, endDateObj, weightFactor) {
+            let totalW = 0;
+            let d = new Date(startDateObj);
+            while (d <= endDateObj) {
+                totalW += getWeightForDate(d, weightFactor);
+                d.setDate(d.getDate() + 1);
+            }
+            return totalW;
+        }
+
+        async function getFinancialStats() {
+            const setupResponse = await window.electronAPI.getUserData('financial_setup');
+            if (!setupResponse.success || !setupResponse.value) return null;
+
+            const data = setupResponse.value;
+            const purchases = await loadPurchases();
+            const todayStr = todayISO();
+            const isBeforeStart = todayStr < data.startDate;
+            const isAfterEnd = todayStr > data.endDate;
+            const isBreak = isBeforeStart || isAfterEnd;
+
+            const days = daysBetween(data.startDate, data.endDate);
+            const weeks = days / 7;
+            const months = days / 30.44;
+
+            const totalIn = (data.checkingSavings || 0) + (data.financialAidRefund || 0) + (data.parentContribution || 0) + ((data.weeklyIncome || 0) * weeks);
+            const totalOut = ((data.rentUtilities || 0) * months) + (data.oneTimeExpenses || 0);
+            const netRemaining = totalIn - totalOut;
+
+            const isSurplusFunded = (p) => p.isGoal || p.fromSurplus;
+
+            const allSemesterPurchases = purchases.filter(p => p.date >= data.startDate && p.date <= data.endDate);
+            const semesterPurchases = allSemesterPurchases.filter(p => !isSurplusFunded(p));
+
+            const totalSpent = semesterPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
+
+            const previousPurchases = semesterPurchases.filter(p => p.date < todayStr);
+            const totalSpentBeforeToday = previousPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
+
+            const surplusFundedPurchases = allSemesterPurchases.filter(isSurplusFunded);
+            const totalSpentOnGoals = surplusFundedPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
+
+            const end = new Date(data.endDate + 'T00:00:00');
+            const now = new Date(todayStr + 'T00:00:00');
+            const start = new Date(data.startDate + 'T00:00:00');
+            const effectiveStart = now > start ? now : start;
+
+            const weightFactor = data.weekendWeight || 1;
+            const fullSemesterWeightTotal = calculateWeightRange(start, end, weightFactor);
+            const baseSpendUnit = fullSemesterWeightTotal > 0 ? (netRemaining / fullSemesterWeightTotal) : 0;
+
+            const roundedWeekday = Math.round(baseSpendUnit);
+            const roundedWeekend = Math.round(baseSpendUnit * weightFactor);
+
+            let expectedSpendToDate = 0;
+            let d = new Date(start);
+            while (d < effectiveStart) {
+                const day = d.getDay();
+                expectedSpendToDate += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
+                d.setDate(d.getDate() + 1);
+            }
+
+            const surplusDeficit = (expectedSpendToDate - totalSpentBeforeToday) - totalSpentOnGoals;
+            const isSurplus = surplusDeficit >= 0;
+
+            return { data, purchases, todayStr, isBreak, totalSpent, surplusDeficit, isSurplus, weightFactor, roundedWeekday, roundedWeekend };
+        }
+
+        async function loadCustomCategories() {
+            const response = await window.electronAPI.getUserData('custom_categories');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function saveCustomCategories(categories) {
+            await window.electronAPI.setUserData('custom_categories', categories);
+        }
+
+        async function getAllCategories() {
+            const custom = await loadCustomCategories();
+            return [...DEFAULT_CATEGORIES, ...custom];
+        }
+
+        async function loadPurchases() {
+            const response = await window.electronAPI.getUserData('purchases');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function savePurchases(purchases) {
+            await window.electronAPI.setUserData('purchases', purchases);
+        }
+
+        async function loadSubscriptions() {
+            const response = await window.electronAPI.getUserData('subscriptions');
+            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        }
+
+        async function saveSubscriptions(subscriptions) {
+            await window.electronAPI.setUserData('subscriptions', subscriptions);
+        }
+
+        function addSubscriptionInterval(dateString, frequency) {
+            const d = new Date(dateString + 'T00:00:00');
+            const day = d.getDate();
+            if (frequency === 'yearly') {
+                d.setFullYear(d.getFullYear() + 1);
+            } else {
+                d.setMonth(d.getMonth() + 1, 1);
+                const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                d.setDate(Math.min(day, daysInTargetMonth));
+            }
+            return getLocalISO(d);
+        }
+
+        let subscriptionProcessingChain = Promise.resolve();
+        function processSubscriptionPayments() {
+            const result = subscriptionProcessingChain.then(() => processSubscriptionPaymentsInner());
+            subscriptionProcessingChain = result.catch(() => {});
+            return result;
+        }
+
+        async function processSubscriptionPaymentsInner() {
+            const subscriptions = await loadSubscriptions();
+            if (!subscriptions.length) return { count: 0, total: 0, names: [] };
+
+            const today = todayISO();
+            const purchases = await loadPurchases();
+            let changed = false;
+            let count = 0;
+            let total = 0;
+            const names = [];
+
+            subscriptions.forEach(sub => {
+                if (!sub.amount || !sub.startDate) return;
+
+                let nextBilling = sub.nextBillingDate || sub.startDate;
+                let subCount = 0;
+
+                while (nextBilling && nextBilling <= today) {
+                    purchases.push({
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        amount: sub.amount,
+                        description: sub.name || 'Subscription',
+                        tag: 'Subscription',
+                        date: nextBilling,
+                        fromSurplus: true,
+                        isSubscriptionPayment: true,
+                        subscriptionId: sub.id
+                    });
+                    count += 1;
+                    subCount += 1;
+                    total += Number(sub.amount) || 0;
+                    nextBilling = addSubscriptionInterval(nextBilling, sub.frequency);
+                    changed = true;
+                }
+
+                if (subCount > 0) names.push(sub.name);
+                sub.nextBillingDate = nextBilling;
+            });
+
+            if (changed) {
+                await savePurchases(purchases);
+                await saveSubscriptions(subscriptions);
+            }
+
+            return { count, total, names };
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = str == null ? '' : str;
+            return div.innerHTML;
+        }
+
+        function formatCurrency(amount) {
+            return getCurrencySymbol() + (Number(amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const [year, month, day] = dateString.split('-');
+            return `${month}/${day}/${year}`;
+        }
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            renderHistoryView();
+        }
+
+        function filterPurchases(purchases) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            return purchases.filter(p => {
+                if (!p.date) return false;
+                const pDate = new Date(p.date + 'T00:00:00');
+
+                if (currentTab === 'all') {
+                    return true;
+                } else if (currentTab === 'daily') {
+                    return pDate.toDateString() === today.toDateString();
+                } else if (currentTab === 'weekly') {
+                    const sevenDaysAgo = new Date(today);
+                    sevenDaysAgo.setDate(today.getDate() - 7);
+                    return pDate >= sevenDaysAgo && pDate <= today;
+                } else if (currentTab === 'monthly') {
+                    return pDate.getMonth() === today.getMonth() && pDate.getFullYear() === today.getFullYear();
+                }
+                return true;
+            });
+        }
+
+        async function renderChart(filteredPurchases, categoryColors) {
+            const container = document.getElementById('pieChartContainer');
+            const legendContainer = document.getElementById('pieLegendContainer');
+            
+            let timeframeSpent = 0;
+            const categoryTotals = {};
+
+            filteredPurchases.forEach(p => {
+                const netAmt = (Number(p.amount) || 0) - (Number(p.reimbursement) || 0);
+                if (netAmt > 0) {
+                    timeframeSpent += netAmt;
+                    categoryTotals[p.tag] = (categoryTotals[p.tag] || 0) + netAmt;
+                }
+            });
+
+            if (timeframeSpent === 0) {
+                container.innerHTML = `<div class="empty-pie">No purchases.</div>`;
+                legendContainer.innerHTML = '';
+                return;
+            }
+
+            let cumulativePercent = 0;
+            let svgPaths = `<circle r="1" cx="0" cy="0" fill="#26262b"></circle>`;
+            let legendHTML = '';
+
+            const sortedCategoryTotals = Object.entries(categoryTotals).sort((a, b) => a[0].localeCompare(b[0]));
+
+            for (const [tag, amount] of sortedCategoryTotals) {
+                const color = categoryColors[tag] || '#6b7280';
+                const slicePercent = amount / timeframeSpent;
+
+                legendHTML += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: ${color}"></div>
+                        <span>${escapeHtml(tag)}</span>
+                    </div>
+                `;
+
+                if (slicePercent >= 1) {
+                    svgPaths += `<circle r="1" cx="0" cy="0" fill="${color}" class="pie-slice" data-desc="${escapeHtml(tag)} Total" data-amount="${amount.toFixed(2)}" data-tag="${escapeHtml(tag)}"></circle>`;
+                    continue;
+                }
+
+                const startX = Math.cos(2 * Math.PI * cumulativePercent);
+                const startY = Math.sin(2 * Math.PI * cumulativePercent);
+                
+                cumulativePercent += slicePercent;
+
+                const endX = Math.cos(2 * Math.PI * cumulativePercent);
+                const endY = Math.sin(2 * Math.PI * cumulativePercent);
+                
+                const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
+                const pathData = `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
+                
+                svgPaths += `<path d="${pathData}" fill="${color}" stroke="#131316" stroke-width="0.015" class="pie-slice" data-desc="${escapeHtml(tag)} Total" data-amount="${amount.toFixed(2)}" data-tag="${escapeHtml(tag)}"></path>`;
+            }
+
+            container.innerHTML = `<svg viewBox="-1 -1 2 2" class="daily-pie-chart">${svgPaths}</svg>`;
+            legendContainer.innerHTML = legendHTML;
+
+            const globalTooltip = document.getElementById('globalTooltip');
+            document.querySelectorAll('.pie-slice').forEach(slice => {
+                slice.addEventListener('mousemove', (e) => {
+                    const desc = slice.getAttribute('data-desc');
+                    const amt = slice.getAttribute('data-amount');
+                    const tag = slice.getAttribute('data-tag');
+                    if (desc && amt && tag) {
+                        globalTooltip.innerHTML = `<strong>${desc}</strong><br/>${tag} - ${formatCurrency(amt)}`;
+                        globalTooltip.style.left = (e.clientX + 15) + 'px';
+                        globalTooltip.style.top = (e.clientY + 15) + 'px';
+                        globalTooltip.classList.add('show');
+                    }
+                });
+                slice.addEventListener('mouseout', () => {
+                    globalTooltip.classList.remove('show');
+                });
+            });
+        }
+
+        async function renderHistoryTable(filteredPurchases, categoryColors) {
+            const tbody = document.getElementById('historyTableBody');
+            
+            if (filteredPurchases.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-recent">No purchases found for this timeframe.</td></tr>`;
+                return;
+            }
+
+            filteredPurchases.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let rowsHTML = '';
+            filteredPurchases.forEach(p => {
+                const color = categoryColors[p.tag] || '#6b7280';
+                const netAmt = (Number(p.amount) || 0) - (Number(p.reimbursement) || 0);
+                
+                let costDisplay = formatCurrency(p.amount);
+                let statusDisplay = `<span style="color: #a1a1aa;">Settled</span>`;
+
+                if (p.reimbursement) {
+                    if (!p.reimbursementSettled) {
+                        statusDisplay = `<span style="color: #f59e0b;">${formatCurrency(p.reimbursement)} Pending</span> 
+                                         <input type="checkbox" class="settle-reimbursement-chk" data-id="${p.id}" style="margin-left: 6px; cursor: pointer; vertical-align: middle;" title="Mark as received">`;
+                    } else {
+                        statusDisplay = `<span style="color: #4ade80;">Reimbursed (${formatCurrency(p.reimbursement)})</span>`;
+                        costDisplay = `<span style="text-decoration: line-through; color: #a1a1aa; margin-right: 6px;">${formatCurrency(p.amount)}</span> ${formatCurrency(netAmt)}`;
+                    }
+                } else if (p.isGoal || p.fromSurplus) {
+                    statusDisplay = `<span class="surplus-badge">Surplus</span>`;
+                }
+
+                rowsHTML += `
+                    <tr>
+                        <td>${formatDate(p.date)}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}</td>
+                        <td>
+                            <div class="recent-tag-badge">
+                                <div class="legend-color" style="background-color: ${color}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></div>
+                                ${escapeHtml(p.tag)}
+                            </div>
+                        </td>
+                        <td>${costDisplay}</td>
+                        <td>${statusDisplay}</td>
+                        <td style="text-align: right;">
+                            <div class="row-actions">
+                                <button class="edit-purchase-btn" data-id="${p.id}" aria-label="Edit purchase">✎</button>
+                                <button class="delete-purchase-btn" data-id="${p.id}" aria-label="Delete purchase">✕</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rowsHTML;
+
+            document.querySelectorAll('.edit-purchase-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const pid = e.currentTarget.getAttribute('data-id');
+                    const currentPurchases = await loadPurchases();
+                    const purchase = currentPurchases.find(p => p.id === pid);
+                    if (purchase) openPurchaseModal(purchase);
+                });
+            });
+
+            document.querySelectorAll('.delete-purchase-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const pid = e.currentTarget.getAttribute('data-id');
+                    const currentPurchases = await loadPurchases();
+                    const pIndex = currentPurchases.findIndex(p => p.id === pid);
+                    if (pIndex !== -1) {
+                        lastDeletedPurchase = currentPurchases[pIndex];
+                        lastDeletedPurchaseIndex = pIndex;
+                        currentPurchases.splice(pIndex, 1);
+                        await savePurchases(currentPurchases);
+                        renderHistoryView();
+                        showUndoToast('purchase');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.settle-reimbursement-chk').forEach(chk => {
+                chk.addEventListener('change', async (e) => {
+                    if (e.target.checked) {
+                        const pid = e.target.getAttribute('data-id');
+                        const currentPurchases = await loadPurchases();
+                        const item = currentPurchases.find(p => p.id === pid);
+                        if (item) {
+                            item.reimbursementSettled = true;
+                            await savePurchases(currentPurchases);
+                            renderHistoryView();
+                        }
+                    }
+                });
+            });
+        }
+
+        async function renderHistoryView() {
+            const allPurchases = await loadPurchases();
+            const filteredPurchases = filterPurchases(allPurchases);
+            
+            const allCategories = await getAllCategories();
+            const categoryColors = {};
+            allCategories.forEach(c => { categoryColors[c.name] = c.color; });
+            categoryColors['Debt Payment'] = DEBT_PAYMENT_COLOR;
+            categoryColors['Goal Purchase'] = GOAL_PURCHASE_COLOR;
+            categoryColors['Subscription'] = SUBSCRIPTION_COLOR;
+
+            await renderHistoryTable(filteredPurchases, categoryColors);
+            await renderChart(filteredPurchases, categoryColors);
+        }
+
+        function showUndoToast(type) {
+            undoType = type;
+            const toast = document.getElementById('undoToast');
+            const toastText = toast.querySelector('span');
+            
+            if (type === 'purchase') {
+                toastText.innerText = 'Purchase deleted.';
+            } else if (type === 'category') {
+                toastText.innerText = 'Category deleted.';
+            } else if (type === 'subscription') {
+                toastText.innerText = 'Subscription removed.';
+            }
+            
+            toast.classList.add('visible');
+            if (undoTimeout) clearTimeout(undoTimeout);
+            undoTimeout = setTimeout(() => {
+                toast.classList.remove('visible');
+                if (type === 'purchase') lastDeletedPurchase = null;
+                if (type === 'category') lastDeletedCategory = null;
+                if (type === 'subscription') lastDeletedSubscription = null;
+            }, 5000);
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', async () => {
+            if (undoType === 'purchase' && lastDeletedPurchase !== null) {
+                const purchases = await loadPurchases();
+                purchases.splice(lastDeletedPurchaseIndex, 0, lastDeletedPurchase);
+                await savePurchases(purchases);
+                renderHistoryView();
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedPurchase = null;
+            } else if (undoType === 'category' && lastDeletedCategory !== null) {
+                const customCategories = await loadCustomCategories();
+                const insertAt = Math.max(0, Math.min(lastDeletedCategoryIndex, customCategories.length));
+                customCategories.splice(insertAt, 0, lastDeletedCategory);
+                await saveCustomCategories(customCategories);
+                await renderCategoryTags(true);
+                renderHistoryView();
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedCategory = null;
+            } else if (undoType === 'subscription' && lastDeletedSubscription !== null) {
+                const subscriptions = await loadSubscriptions();
+                const insertAt = Math.max(0, Math.min(lastDeletedSubscriptionIndex, subscriptions.length));
+                subscriptions.splice(insertAt, 0, lastDeletedSubscription);
+                await saveSubscriptions(subscriptions);
+                await renderSubscriptionList();
+                renderHistoryView();
+                document.getElementById('undoToast').classList.remove('visible');
+                lastDeletedSubscription = null;
+            }
+            if (undoTimeout) clearTimeout(undoTimeout);
+        });
+
+        const purchaseModalOverlay = document.getElementById('purchaseModalOverlay');
+        const closePurchaseModalBtn = document.getElementById('closePurchaseModalBtn');
+        const submitPurchaseBtn = document.getElementById('submitPurchaseBtn');
+        const purchaseAmountInput = document.getElementById('purchaseAmount');
+        const purchaseDescriptionInput = document.getElementById('purchaseDescription');
+        const purchaseError = document.getElementById('purchaseError');
+
+        async function renderCategoryTags(preserveSelection) {
+            allCategoriesCache = await getAllCategories();
+            const purchaseTagsContainer = document.getElementById('purchaseTags');
+            const previousSelected = selectedTag;
+            const stillExists = allCategoriesCache.some(c => c.name === previousSelected);
+
+            const sortedCategories = [...allCategoriesCache].sort((a, b) => {
+                if (a.name === 'Other') return 1;
+                if (b.name === 'Other') return -1;
+                return a.name.localeCompare(b.name);
+            });
+
+            if (!preserveSelection || !stillExists) {
+                selectedTag = sortedCategories.length > 0 ? sortedCategories[0].name : '';
+            }
+
+
+            purchaseTagsContainer.innerHTML = sortedCategories.map(cat => {
+                const isDefault = DEFAULT_CATEGORIES.some(d => d.name === cat.name);
+                const isSelected = cat.name === selectedTag ? ' selected' : '';
+                return `
+                    <div class="tag-btn-wrap">
+                        <button type="button" class="tag-btn${isSelected}" data-tag="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</button>
+                        ${isDefault ? '' : `<span class="tag-delete-x" data-tag="${escapeHtml(cat.name)}" title="Delete category">✕</span>`}
+                    </div>
+                `;
+            }).join('');
+
+            purchaseTagsContainer.querySelectorAll('.tag-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    purchaseTagsContainer.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedTag = btn.dataset.tag;
+                });
+            });
+
+            purchaseTagsContainer.querySelectorAll('.tag-delete-x').forEach(delBtn => {
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const tagToDelete = delBtn.dataset.tag;
+
+                    const customCategories = await loadCustomCategories();
+                    const cIndex = customCategories.findIndex(c => c.name === tagToDelete);
+                    if (cIndex === -1) return;
+
+                    lastDeletedCategory = customCategories[cIndex];
+                    lastDeletedCategoryIndex = cIndex;
+
+                    customCategories.splice(cIndex, 1);
+                    await saveCustomCategories(customCategories);
+                    await renderCategoryTags(true);
+                    renderHistoryView();
+                    showUndoToast('category');
+                });
+            });
+
+        }
+
+        document.getElementById('purchaseSplitToggle').addEventListener('change', (e) => {
+            document.getElementById('reimbursementField').style.display = e.target.checked ? 'block' : 'none';
+            if (!e.target.checked) {
+                document.getElementById('purchaseReimbursement').value = '';
+            }
+        });
+
+        const subscriptionToggleBtn = document.getElementById('subscriptionToggleBtn');
+        const subscriptionSection = document.getElementById('subscriptionSection');
+        const oneTimePurchaseFields = document.getElementById('oneTimePurchaseFields');
+        const subscriptionListContainer = document.getElementById('subscriptionListContainer');
+        const subscriptionNameInput = document.getElementById('subscriptionName');
+        const subscriptionAmountInput = document.getElementById('subscriptionAmount');
+        const subscriptionFrequencySelect = document.getElementById('subscriptionFrequency');
+        const subscriptionStartDateInput = document.getElementById('subscriptionStartDate');
+        const subscriptionError = document.getElementById('subscriptionError');
+        const saveSubscriptionBtn = document.getElementById('saveSubscriptionBtn');
+        let lastDeletedSubscription = null;
+        let lastDeletedSubscriptionIndex = -1;
+
+        function setSubscriptionExpanded(expanded) {
+            subscriptionSection.classList.toggle('collapsed', !expanded);
+            oneTimePurchaseFields.classList.toggle('collapsed', expanded);
+            subscriptionToggleBtn.innerText = expanded ? '− Hide subscription setup' : '+ Set up a subscription';
+        }
+
+        subscriptionToggleBtn.addEventListener('click', () => {
+            const isExpanded = !subscriptionSection.classList.contains('collapsed');
+            setSubscriptionExpanded(!isExpanded);
+        });
+
+        async function renderSubscriptionList() {
+            const subscriptions = await loadSubscriptions();
+
+            if (!subscriptions.length) {
+                subscriptionListContainer.innerHTML = '';
+                return;
+            }
+
+            subscriptionListContainer.innerHTML = subscriptions.map(sub => `
+                <div class="subscription-row" data-id="${sub.id}">
+                    <div class="subscription-row-info">
+                        <span class="subscription-row-name">${escapeHtml(sub.name)}</span>
+                        <span class="subscription-row-meta">${formatCurrency(sub.amount)} / ${sub.frequency === 'yearly' ? 'year' : 'month'}</span>
+                    </div>
+                    <button type="button" class="delete-purchase-btn subscription-delete-btn" data-id="${sub.id}" aria-label="Remove subscription" title="Remove this subscription">✕</button>
+                </div>
+            `).join('');
+
+            subscriptionListContainer.querySelectorAll('.subscription-delete-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const subId = btn.dataset.id;
+                    const currentSubs = await loadSubscriptions();
+                    const sIndex = currentSubs.findIndex(s => s.id === subId);
+                    if (sIndex === -1) return;
+
+                    lastDeletedSubscription = currentSubs[sIndex];
+                    lastDeletedSubscriptionIndex = sIndex;
+
+                    currentSubs.splice(sIndex, 1);
+                    await saveSubscriptions(currentSubs);
+                    await renderSubscriptionList();
+                    showUndoToast('subscription');
+                });
+            });
+        }
+
+        saveSubscriptionBtn.addEventListener('click', async () => {
+            const name = subscriptionNameInput.value.trim();
+            const amount = Number(subscriptionAmountInput.value);
+            const frequency = subscriptionFrequencySelect.value;
+            const startDate = subscriptionStartDateInput.value || todayISO();
+
+            if (!name) {
+                subscriptionError.innerText = 'Add a name for this subscription.';
+                return;
+            }
+            if (!amount || amount <= 0) {
+                subscriptionError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
+                return;
+            }
+
+            subscriptionError.innerText = '';
+            saveSubscriptionBtn.disabled = true;
+            saveSubscriptionBtn.innerText = 'Saving...';
+
+            const subscriptions = await loadSubscriptions();
+            subscriptions.push({
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                name,
+                amount,
+                frequency,
+                startDate,
+                nextBillingDate: startDate
+            });
+            await saveSubscriptions(subscriptions);
+            await processSubscriptionPayments();
+
+            subscriptionNameInput.value = '';
+            subscriptionAmountInput.value = '';
+            subscriptionFrequencySelect.value = 'monthly';
+            subscriptionStartDateInput.value = '';
+
+            saveSubscriptionBtn.disabled = false;
+            saveSubscriptionBtn.innerText = 'Add Subscription';
+            await renderSubscriptionList();
+            renderHistoryView();
+        });
+
+        async function openPurchaseModal(purchase = null) {
+            editingPurchaseId = purchase ? purchase.id : null;
+
+            purchaseError.innerText = '';
+
+            const modalTitleText = document.getElementById('purchaseModalTitleText');
+
+            if (purchase) {
+                modalTitleText.innerText = 'Edit Purchase';
+                submitPurchaseBtn.innerText = 'Save Changes';
+
+                purchaseAmountInput.value = purchase.amount;
+                purchaseDescriptionInput.value = purchase.description;
+
+                const hasReimbursement = !!purchase.reimbursement;
+                document.getElementById('purchaseSplitToggle').checked = hasReimbursement;
+                document.getElementById('reimbursementField').style.display = hasReimbursement ? 'block' : 'none';
+                document.getElementById('purchaseReimbursement').value = hasReimbursement ? purchase.reimbursement : '';
+
+                selectedTag = purchase.tag;
+                await renderCategoryTags(true);
+
+                selectedFundSource = purchase.fromSurplus ? 'surplus' : 'daily';
+                renderFundSourceSelector();
+            } else {
+                modalTitleText.innerText = 'Log a Purchase';
+                submitPurchaseBtn.innerText = 'Log Purchase';
+
+                purchaseAmountInput.value = '';
+                purchaseDescriptionInput.value = '';
+                document.getElementById('purchaseSplitToggle').checked = false;
+                document.getElementById('reimbursementField').style.display = 'none';
+                document.getElementById('purchaseReimbursement').value = '';
+
+                await renderCategoryTags(false);
+
+                selectedFundSource = 'daily';
+                renderFundSourceSelector();
+            }
+
+            updateFundSourceNote();
+
+            subscriptionError.innerText = '';
+            subscriptionNameInput.value = '';
+            subscriptionAmountInput.value = '';
+            subscriptionFrequencySelect.value = 'monthly';
+            subscriptionStartDateInput.value = '';
+            await renderSubscriptionList();
+            setSubscriptionExpanded(false);
+
+            purchaseModalOverlay.classList.add('visible');
+        }
+
+        function closePurchaseModal() {
+            purchaseModalOverlay.classList.remove('visible');
+            editingPurchaseId = null;
+        }
+
+        document.getElementById('logPurchaseBtn').addEventListener('click', () => openPurchaseModal());
+        closePurchaseModalBtn.addEventListener('click', closePurchaseModal);
+        purchaseModalOverlay.addEventListener('click', (e) => {
+            if (e.target === purchaseModalOverlay) closePurchaseModal();
+        });
+
+        submitPurchaseBtn.addEventListener('click', async () => {
+            const amount = Number(purchaseAmountInput.value);
+            const description = purchaseDescriptionInput.value.trim();
+            const isSplit = document.getElementById('purchaseSplitToggle').checked;
+            const reimbursement = isSplit ? Number(document.getElementById('purchaseReimbursement').value) : 0;
+
+            if (!amount || amount <= 0) {
+                purchaseError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
+                return;
+            }
+            if (!description) {
+                purchaseError.innerText = 'Add a short description.';
+                return;
+            }
+            if (isSplit && (reimbursement <= 0 || reimbursement >= amount)) {
+                purchaseError.innerText = `Reimbursement must be greater than ${getCurrencySymbol()}0 and less than total amount.`;
+                return;
+            }
+
+            const isEditing = !!editingPurchaseId;
+
+            submitPurchaseBtn.disabled = true;
+            submitPurchaseBtn.innerText = 'Saving...';
+
+            const purchases = await loadPurchases();
+
+            const fromSurplus = selectedFundSource === 'surplus';
+
+            if (isEditing) {
+                const existing = purchases.find(p => p.id === editingPurchaseId);
+                if (existing) {
+                    existing.amount = amount;
+                    existing.description = description;
+                    existing.tag = selectedTag;
+                    existing.fromSurplus = fromSurplus;
+                    if (isSplit) {
+                        if (!existing.reimbursement) existing.reimbursementSettled = false;
+                        existing.reimbursement = reimbursement;
+                    } else {
+                        delete existing.reimbursement;
+                        delete existing.reimbursementSettled;
+                    }
+                }
+            } else {
+                purchases.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    amount,
+                    description,
+                    tag: selectedTag,
+                    date: todayISO(),
+                    reimbursement: reimbursement > 0 ? reimbursement : undefined,
+                    reimbursementSettled: false,
+                    fromSurplus
+                });
+            }
+            await savePurchases(purchases);
+
+            submitPurchaseBtn.disabled = false;
+            submitPurchaseBtn.innerText = isEditing ? 'Save Changes' : 'Log Purchase';
+            closePurchaseModal();
+            renderHistoryView();
+        });
+
+        const affordModalOverlay = document.getElementById('affordModalOverlay');
+        const affordCheckBtn = document.getElementById('affordCheckBtn');
+        const closeAffordModalBtn = document.getElementById('closeAffordModalBtn');
+        const submitCheckAffordBtn = document.getElementById('checkAffordBtn');
+        const affordAmountInput = document.getElementById('affordAmount');
+        const affordError = document.getElementById('affordError');
+        const affordResult = document.getElementById('affordResult');
+
+        function openAffordModal() {
+            affordAmountInput.value = '';
+            document.getElementById('affordDescription').value = '';
+            affordError.innerText = '';
+            affordResult.style.display = 'none';
+            affordModalOverlay.classList.add('visible');
+        }
+
+        function closeAffordModal() {
+            affordModalOverlay.classList.remove('visible');
+        }
+
+        affordCheckBtn.addEventListener('click', openAffordModal);
+        closeAffordModalBtn.addEventListener('click', closeAffordModal);
+        affordModalOverlay.addEventListener('click', (e) => {
+            if (e.target === affordModalOverlay) closeAffordModal();
+        });
+
+        submitCheckAffordBtn.addEventListener('click', async () => {
+            const amount = Number(affordAmountInput.value);
+            if (!amount || amount <= 0) {
+                affordError.innerText = 'Enter a valid amount.';
+                return;
+            }
+            affordError.innerText = '';
+            
+            const stats = await getFinancialStats();
+            if (!stats || stats.isBreak) {
+                affordResult.innerHTML = `<div class="afford-verdict" style="color: #f59e0b;">Cannot Calculate</div><p class="afford-detail">You are not currently in an active semester.</p>`;
+                affordResult.style.display = 'block';
+                return;
+            }
+
+            const surplus = stats.surplusDeficit;
+            
+            if (surplus >= amount) {
+                affordResult.innerHTML = `<div class="afford-verdict" style="color: #4ade80;">Yes, you can!</div><p class="afford-detail">This costs ${getCurrencySymbol()}${amount.toFixed(2)}, and you have ${getCurrencySymbol()}${Math.round(surplus).toLocaleString()} in surplus. Buying this will leave you with a surplus of ${getCurrencySymbol()}${Math.round(surplus - amount).toLocaleString()}.</p>`;
+            } else if (surplus > 0) {
+                affordResult.innerHTML = `<div class="afford-verdict" style="color: #f59e0b;">Not fully with surplus.</div><p class="afford-detail">You only have ${getCurrencySymbol()}${Math.round(surplus).toLocaleString()} in surplus. This will put you in a deficit of ${getCurrencySymbol()}${Math.round(amount - surplus).toLocaleString()}.</p>`;
+            } else {
+                affordResult.innerHTML = `<div class="afford-verdict" style="color: #f87171;">Not recommended.</div><p class="afford-detail">You are already in a deficit of ${getCurrencySymbol()}${Math.round(Math.abs(surplus)).toLocaleString()}. Adding this will increase your deficit to ${getCurrencySymbol()}${Math.round(Math.abs(surplus) + amount).toLocaleString()}.</p>`;
+            }
+            affordResult.style.display = 'block';
+        });
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            sidebarOverlay.classList.add('visible');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+        }
+
+        hamburgerBtn.addEventListener('click', openSidebar);
+        closeSidebarBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        signOutBtn.addEventListener('click', async () => {
+            await window.electronAPI.signOut();
+            window.electronAPI.changePage('login.html');
+        });
+
+        processSubscriptionPayments().then(() => {
+            renderHistoryView();
+        });
+
+        renderHistoryView();
+    </script>
+</body>
+</html>

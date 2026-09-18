@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup - College Finance Tracker</title>
+    <link rel="stylesheet" href="setup.css">
+    <script src="currency.js"></script>
+</head>
+<body>
+    <div class="glow-container">
+        <div class="glow-blob color-purple"></div>
+        <div class="glow-blob color-blue"></div>
+    </div>
+
+    <div class="wizard-shell">
+        <section class="wizard-panel">
+            <div class="wizard-topbar">
+                <span class="step-indicator" id="stepIndicator">Step 1 of 6</span>
+                <button class="skip-link" id="skipLink">Skip for now →</button>
+            </div>
+
+            <div class="wizard-steps">
+                <div class="wizard-step active" data-step="1">
+                    <h2>Let's set your timeline</h2>
+                    <p class="step-desc">Your money needs to last from the first day of the semester to the last. Pick a preset or set exact dates.</p>
+
+                    <div class="preset-group">
+                        <button class="preset-card" data-start="2026-08-24" data-end="2026-12-13">
+                            <span class="preset-title">Fall 2026</span>
+                            <span class="preset-sub">Late Aug – Mid Dec</span>
+                        </button>
+                        <button class="preset-card" data-start="2027-01-19" data-end="2027-05-08">
+                            <span class="preset-title">Spring 2027</span>
+                            <span class="preset-sub">Mid Jan – Early May</span>
+                        </button>
+                    </div>
+
+                    <div class="field">
+                        <label for="schoolName">College / University</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="schoolName" placeholder="e.g., NYU, Ohio State, Dartmouth..." autocomplete="off">
+                            <ul class="autocomplete-list" id="schoolSuggestions"></ul>
+                        </div>
+                        <p class="field-hint" id="cityCostHint" style="margin-top: 6px; min-height: 16px;"></p>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="startDate">Semester Starts</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="field">
+                            <label for="endDate">Semester Ends</label>
+                            <input type="date" id="endDate">
+                        </div>
+                    </div>
+
+                    <p class="inline-warning" id="dateWarning"></p>
+                </div>
+
+                <div class="wizard-step" data-step="2">
+                    <h2>Your starting stash</h2>
+                    <p class="step-desc">How much money do you have to survive this timeline? Break it down below.</p>
+
+                    <div class="field">
+                        <label for="checkingSavings">Current Cash On Hand <span class="field-hint">(cash, checkings/savings accounts, etc.)</span></label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="checkingSavings" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="financialAidRefund">Financial Aid <span class="field-hint">(you can add this later with the "Add Income" feature)</span></label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="financialAidRefund" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="parentContribution">Family &amp; External Support <span class="field-hint">(you can add this later with the "Add Income" feature)</span></label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="parentContribution" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wizard-step" data-step="3">
+                    <h2>Your core expenses</h2>
+                    <p class="step-desc">Before groceries or going out, this money is already spoken for.</p>
+
+                    <div class="field">
+                        <label for="rentUtilities">Rent &amp; Utilities <span class="field-hint">(per month, if off-campus)</span></label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="rentUtilities" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="oneTimeExpenses">One-Time Expected Hits <span class="field-hint">(textbooks, access codes, etc.)</span></label>
+                        <div class="dollar-input">
+                            <span class="dollar-sign">$</span>
+                            <input type="number" id="oneTimeExpenses" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wizard-step" data-step="4">
+                    <h2>The weekend premium</h2>
+                    <p class="step-desc">Fridays, Saturdays, and Sundays usually cost more. How much more should we weight your weekend budget compared to a weekday?</p>
+
+                    <div class="field">
+                        <label for="weekendWeight">Weekend Multiplier: <span id="weightValDisplay" style="color: #6366f1; font-weight: bold; font-size: 16px;">1.5</span>x</label>
+                        <input type="range" id="weekendWeight" class="slider-input" min="1" max="3" step="0.1" value="1.5">
+                        <p class="field-hint" style="margin-top: 12px;">A 1.5x multiplier means you get 50% more budget on Fri/Sat/Sun, while a 2x doubles it. Your weekday limits will drop to compensate.</p>
+                    </div>
+
+                    <div class="weight-preview-box" id="weightPreviewBox">
+                        <div class="weight-preview-col">
+                            <span class="weight-preview-label">Weekday Budget</span>
+                            <span class="weight-preview-val" id="previewWeekday">$0</span>
+                        </div>
+                        <div class="weight-preview-col">
+                            <span class="weight-preview-label">Weekend Budget</span>
+                            <span class="weight-preview-val" id="previewWeekend" style="color: #6366f1;">$0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wizard-step" data-step="5">
+                    <h2 id="realityHeadline">Here's the reality</h2>
+                    <p class="step-desc" id="realitySub">Your average daily safe spend for the semester.</p>
+
+                    <div class="reality-card">
+                        <span class="reality-label">Average Daily Safe Spend</span>
+                        <span class="reality-number" id="dailySafeSpendDisplay">$0</span>
+                        <span class="reality-caption" id="realityCaption"></span>
+                    </div>
+
+                    <div class="reality-breakdown">
+                        <div class="breakdown-row">
+                            <span>Starting Stash</span>
+                            <span id="breakdownIn">$0</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Core Expenses</span>
+                            <span id="breakdownOut">$0</span>
+                        </div>
+                        <div class="breakdown-row breakdown-net">
+                            <span>Net runway</span>
+                            <span id="breakdownNet">$0</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Days in semester</span>
+                            <span id="breakdownDays">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-nav">
+                <button class="nav-btn back-btn-wizard" id="backBtn">Back</button>
+                <button class="nav-btn primary-btn" id="nextBtn">Next</button>
+                <button class="nav-btn primary-btn hidden" id="finishBtn">Finish Setup</button>
+            </div>
+        </section>
+
+        <section class="visual-panel">
+            <div class="visual-inner">
+                <span class="visual-title">Your Timeline</span>
+
+                <div class="timeline-track-wrap">
+                    <div class="timeline-track">
+                        <div class="timeline-fill">
+                            <div class="timeline-segment-past" id="timelinePast"></div>
+                            <div class="timeline-segment-remaining" id="timelineRemaining"></div>
+                        </div>
+                        <div class="today-dot" id="todayDot"></div>
+                        <div class="today-label" id="todayLabel">Today</div>
+                    </div>
+                    <div class="timeline-endpoints">
+                        <span id="timelineStartLabel">Start</span>
+                        <span id="timelineEndLabel">End</span>
+                    </div>
+                </div>
+
+                <div class="timeline-readout">
+                    <div class="timeline-stat">
+                        <span class="timeline-stat-value" id="daysElapsedValue">—</span>
+                        <span class="timeline-stat-label">Days In</span>
+                    </div>
+                    <div class="timeline-stat">
+                        <span class="timeline-stat-value" id="daysRemainingValue">—</span>
+                        <span class="timeline-stat-label">Days Left</span>
+                    </div>
+                    <div class="timeline-stat">
+                        <span class="timeline-stat-value" id="daysTotalValue">—</span>
+                        <span class="timeline-stat-label">Total Days</span>
+                    </div>
+                </div>
+                <div class="timeline-readout financial-readout">
+                    <div class="timeline-stat">
+                        <span class="timeline-stat-value" id="netRunwayValue">—</span>
+                        <span class="timeline-stat-label">Net Runway</span>
+                    </div>
+                    <div class="timeline-stat">
+                        <span class="timeline-stat-value" id="timelineSafeSpendValue">—</span>
+                        <span class="timeline-stat-label">Avg Daily Spend</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-overlay" id="setupCompleteOverlay">
+        <div class="modal-card congrats-modal-card">
+            <div class="congrats-icon">🎉</div>
+            <div class="congrats-title">You're all set!</div>
+            <p class="congrats-subtitle">Your financial plan is ready. Taking you to your dashboard...</p>
+        </div>
+    </div>
+
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <script>
+        const state = {
+            schoolName: '',
+            costMultiplier: 1.0,
+            cityType: 'small',
+            startDate: '',
+            endDate: '',
+            checkingSavings: 0,
+            financialAidRefund: 0,
+            parentContribution: 0,
+            rentUtilities: 0,
+            oneTimeExpenses: 0,
+            weeklyIncome: 0,
+            weekendWeight: 1.5 
+        };
+
+        const PAY_PERIODS_PER_YEAR = {
+            weekly: 52,
+            biweekly: 26,
+            monthly: 12
+        };
+
+        function toWeeklyEquivalent(amount, frequency) {
+            const perYear = PAY_PERIODS_PER_YEAR[frequency] || 52;
+            return (Number(amount) || 0) * perYear / 52;
+        }
+
+        function fireConfetti() {
+            const container = document.getElementById('confettiContainer');
+            container.innerHTML = '';
+            const colors = ['#6366f1', '#3b82f6', '#4ade80', '#eab308', '#ec4899', '#a855f7'];
+            for (let i = 0; i < 60; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + 'vw';
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDelay = Math.random() * 2 + 's';
+                piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                container.appendChild(piece);
+            }
+            setTimeout(() => { container.innerHTML = ''; }, 4000);
+        }
+
+        let paymentAudioCtx = null;
+
+        document.addEventListener('click', function unlockPaymentAudio() {
+            if (!paymentAudioCtx) {
+                paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (paymentAudioCtx.state === 'suspended') paymentAudioCtx.resume();
+            document.removeEventListener('click', unlockPaymentAudio);
+        }, { once: true });
+
+        function playBrassNote(ctx, freq, startTime, length, peakGain) {
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 2200;
+            filter.Q.value = 0.7;
+
+            const gainNode = ctx.createGain();
+            filter.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            [-4, 4].forEach((detuneCents) => {
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                osc.detune.value = detuneCents;
+                osc.connect(filter);
+                osc.start(startTime);
+                osc.stop(startTime + length + 0.05);
+            });
+
+            const attack = 0.03;
+            const release = length * 0.55;
+            gainNode.gain.setValueAtTime(0.0001, startTime);
+            gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + attack);
+            gainNode.gain.setValueAtTime(peakGain, startTime + length - release);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
+        }
+
+        function playFanfareSound() {
+            if (localStorage.getItem('soundsMuted') === 'true') return;
+            try {
+                if (!paymentAudioCtx) {
+                    paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const ctx = paymentAudioCtx;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const notes = [
+                    { freq: 392.00, start: 0,    length: 0.16, gain: 0.16 },
+                    { freq: 523.25, start: 0.18, length: 0.16, gain: 0.16 },
+                    { freq: 659.25, start: 0.36, length: 0.5,  gain: 0.20 }
+                ];
+
+                notes.forEach(({ freq, start, length, gain }) => {
+                    playBrassNote(ctx, freq, ctx.currentTime + start, length, gain);
+                });
+            } catch (e) {
+            }
+        }
+
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        const stepIndicator = document.getElementById('stepIndicator');
+        const backBtn = document.getElementById('backBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const finishBtn = document.getElementById('finishBtn');
+        const dateWarning = document.getElementById('dateWarning');
+        const skipLink = document.getElementById('skipLink');
+
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const schoolInput = document.getElementById('schoolName');
+        const suggestionsList = document.getElementById('schoolSuggestions');
+        const weekendWeightSlider = document.getElementById('weekendWeight');
+        const weightValDisplay = document.getElementById('weightValDisplay');
+
+        const numberFields = [
+            'checkingSavings', 'financialAidRefund', 'parentContribution',
+            'rentUtilities', 'oneTimeExpenses'
+        ];
+
+        let debounceTimer;
+
+        function checkCityCost(school) {
+            const lowerSchool = school.toLowerCase();
+            const bigCityKeywords = ['nyu', 'new york', 'columbia', 'ucla', 'usc', 'los angeles', 'chicago', 'boston', 'san francisco', 'berkeley', 'seattle', 'washington', 'miami', 'baruch', 'hunter', 'cooper union', 'cuny'];
+            const mediumCityKeywords = ['ohio state', 'michigan', 'austin', 'texas', 'penn state', 'minnesota', 'wisconsin', 'maryland', 'pittsburgh', 'atlanta', 'georgia tech'];
+
+            if (bigCityKeywords.some(city => lowerSchool.includes(city))) {
+                state.cityType = 'big';
+            } else if (mediumCityKeywords.some(city => lowerSchool.includes(city))) {
+                state.cityType = 'medium';
+            } else {
+                state.cityType = 'small';
+            }
+
+            if (state.cityType === 'big') state.costMultiplier = 1.30;
+            else if (state.cityType === 'medium') state.costMultiplier = 1.15;
+            else state.costMultiplier = 1.0;
+
+            const hintEl = document.getElementById('cityCostHint');
+            if (!hintEl) return;
+
+            if (state.cityType === 'big') {
+                hintEl.style.color = '#f59e0b';
+                hintEl.innerText = "🏙️ Big city detected. Daily safe spend requirements will be 30% higher.";
+            } else if (state.cityType === 'medium') {
+                hintEl.style.color = '#a5aeff';
+                hintEl.innerText = "🏢 Mid-sized city detected. Daily safe spend requirements will be 15% higher.";
+            } else if (school.trim().length > 0) {
+                hintEl.style.color = '#4ade80';
+                hintEl.innerText = "🏡 Standard college town assumed. Standard daily safe spend requirements apply.";
+            } else {
+                hintEl.innerText = "";
+            }
+        }
+
+        if (schoolInput && suggestionsList) {
+            schoolInput.addEventListener('input', (e) => {
+                const val = e.target.value;
+                state.schoolName = val;
+                
+                clearTimeout(debounceTimer);
+                checkCityCost(val);
+                updateVisual();
+
+                if (val.trim().length > 2) {
+                    suggestionsList.style.display = 'block';
+                    suggestionsList.innerHTML = '<li style="color: #71717a;">Searching database...</li>';
+                    
+                    debounceTimer = setTimeout(async () => {
+                        try {
+                            const response = await fetch(`http://universities.hipolabs.com/search?name=${encodeURIComponent(val)}`);
+                            const data = await response.json();
+                            
+                            suggestionsList.innerHTML = '';
+                            
+                            const uniqueSchools = [...new Set(data.map(item => item.name))].slice(0, 8);
+                            
+                            if (uniqueSchools.length > 0) {
+                                uniqueSchools.forEach(match => {
+                                    const li = document.createElement('li');
+                                    li.innerText = match;
+                                    
+                                    li.addEventListener('click', () => {
+                                        schoolInput.value = match;
+                                        state.schoolName = match;
+                                        suggestionsList.style.display = 'none';
+
+                                        checkCityCost(match);
+                                        updateVisual();
+                                    });
+                                    
+                                    suggestionsList.appendChild(li);
+                                });
+                            } else {
+                                suggestionsList.innerHTML = '<li style="color: #71717a;">No schools found</li>';
+                            }
+                        } catch (error) {
+                            suggestionsList.innerHTML = '<li style="color: #f87171;">Network error. You can still type it manually.</li>';
+                        }
+                    }, 300);
+                } else {
+                    suggestionsList.style.display = 'none';
+                    suggestionsList.innerHTML = '';
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== schoolInput && suggestionsList) {
+                suggestionsList.style.display = 'none';
+            }
+        }); 
+
+        function loadExistingData(callback) {
+            window.electronAPI.getUserData('financial_setup').then((response) => {
+                if (response.success && response.value) {
+                    const saved = response.value;
+                    state.startDate = saved.startDate || '';
+                    state.endDate = saved.endDate || '';
+                    startDateInput.value = state.startDate;
+                    endDateInput.value = state.endDate;
+
+                    state.schoolName = saved.schoolName || '';
+                    if (schoolInput) {
+                        schoolInput.value = state.schoolName;
+                        if (state.schoolName) checkCityCost(state.schoolName);
+                    }
+
+                    state.weekendWeight = saved.weekendWeight || 1.5;
+                    weekendWeightSlider.value = state.weekendWeight;
+                    weightValDisplay.innerText = state.weekendWeight.toFixed(1);
+
+                    numberFields.forEach((field) => {
+                        state[field] = saved[field] || 0;
+                        document.getElementById(field).value = saved[field] || '';
+                    });
+                }
+                window.electronAPI.getUserData('steady_income').then((steadyResponse) => {
+                    const steady = (steadyResponse.success && steadyResponse.value) ? steadyResponse.value : null;
+                    state.weeklyIncome = steady ? toWeeklyEquivalent(steady.payAmount, steady.payFrequency) : 0;
+                    if (callback) callback();
+                }).catch(() => {
+                    if (callback) callback();
+                });
+            }).catch(() => {
+                if (callback) callback();
+            });
+        }
+
+        document.querySelectorAll('.preset-card').forEach((card) => {
+            card.addEventListener('click', () => {
+                startDateInput.value = card.dataset.start;
+                endDateInput.value = card.dataset.end;
+                state.startDate = card.dataset.start;
+                state.endDate = card.dataset.end;
+                document.querySelectorAll('.preset-card').forEach((c) => c.classList.remove('selected'));
+                card.classList.add('selected');
+                updateVisual();
+            });
+        });
+
+        startDateInput.addEventListener('input', (e) => {
+            state.startDate = e.target.value;
+            updateVisual();
+        });
+
+        endDateInput.addEventListener('input', (e) => {
+            state.endDate = e.target.value;
+            updateVisual();
+        });
+
+        weekendWeightSlider.addEventListener('input', (e) => {
+            state.weekendWeight = parseFloat(e.target.value);
+            weightValDisplay.innerText = state.weekendWeight.toFixed(1);
+            updateVisual();
+        });
+
+        numberFields.forEach((field) => {
+            const el = document.getElementById(field);
+            el.addEventListener('input', (e) => {
+                state[field] = Number(e.target.value) || 0;
+                updateVisual();
+            });
+        });
+
+        function getWeightForDate(d, weightFactor) {
+            const day = d.getDay();
+            return (day === 0 || day === 5 || day === 6) ? weightFactor : 1;
+        }
+
+        function calculateWeightRange(startDateObj, endDateObj, weightFactor) {
+            let totalW = 0;
+            let d = new Date(startDateObj);
+            while (d <= endDateObj) {
+                totalW += getWeightForDate(d, weightFactor);
+                d.setDate(d.getDate() + 1);
+            }
+            return totalW;
+        }
+
+        function getDaysInSemester() {
+            if (!state.startDate || !state.endDate) return 0;
+            const start = new Date(state.startDate + 'T00:00:00');
+            const end = new Date(state.endDate + 'T00:00:00');
+            const diffMs = end - start;
+            if (diffMs < 0) return 0;
+            return Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1; 
+        }
+
+        function calculate() {
+            const days = getDaysInSemester();
+            if (days <= 0) {
+                updateDOM(0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+
+            const weeks = days / 7;
+            const months = days / 30.44;
+
+            const totalIn = state.checkingSavings + state.financialAidRefund + state.parentContribution + (state.weeklyIncome * weeks);
+            const totalOut = (state.rentUtilities * months) + state.oneTimeExpenses;
+            const netRemaining = totalIn - totalOut;
+
+            const start = new Date(state.startDate + 'T00:00:00');
+            const end = new Date(state.endDate + 'T00:00:00');
+            
+            const weightFactor = state.weekendWeight || 1;
+            const fullSemesterWeightTotal = calculateWeightRange(start, end, weightFactor);
+
+            const baseSpendUnit = fullSemesterWeightTotal > 0 ? (netRemaining / fullSemesterWeightTotal) : 0;
+            
+            const roundedWeekday = Math.round(baseSpendUnit);
+            const roundedWeekend = Math.round(baseSpendUnit * weightFactor);
+            
+            let exactTotal = 0;
+            let d = new Date(start);
+            while(d <= end) {
+                const day = d.getDay();
+                exactTotal += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
+                d.setDate(d.getDate() + 1);
+            }
+            const exactAverage = days > 0 ? exactTotal / days : 0;
+
+            updateDOM(days, totalIn, totalOut, netRemaining, exactAverage, roundedWeekday, roundedWeekend);
+        }
+
+        function updateDOM(days, totalIn, totalOut, netRemaining, averageDaily, weekdaySpend, weekendSpend) {
+            document.getElementById('previewWeekday').innerText = `${getCurrencySymbol()}${weekdaySpend}`;
+            document.getElementById('previewWeekend').innerText = `${getCurrencySymbol()}${weekendSpend}`;
+
+            const dailyDisplayEl = document.getElementById('dailySafeSpendDisplay');
+            dailyDisplayEl.innerText = `${getCurrencySymbol()}${Math.round(averageDaily)}`;
+            dailyDisplayEl.classList.remove('stat-healthy', 'stat-warning', 'stat-danger');
+
+            const comfortableThreshold = 15 * state.costMultiplier;
+
+            let tightnessNote = '';
+            if (days <= 0) {
+            } else if (averageDaily < 0) {
+                dailyDisplayEl.classList.add('stat-danger');
+                tightnessNote = " You're projected to run out before the semester ends.";
+            } else if (averageDaily < comfortableThreshold) {
+                dailyDisplayEl.classList.add('stat-warning');
+                tightnessNote = " That's going to be tight; you don't have a lot of room for surprises.";
+            } else {
+                dailyDisplayEl.classList.add('stat-healthy');
+                tightnessNote = " That's a comfortable daily budget! Don't let it tempt you into overspending.";
+            }
+
+            document.getElementById('realityCaption').innerText = days > 0
+                ? tightnessNote.trim()
+                : '';
+            
+            document.getElementById('breakdownIn').innerText = `${getCurrencySymbol()}${Math.round(totalIn).toLocaleString()}`;
+            document.getElementById('breakdownOut').innerText = `${getCurrencySymbol()}${Math.round(totalOut).toLocaleString()}`;
+            document.getElementById('breakdownNet').innerText = `${getCurrencySymbol()}${Math.round(netRemaining).toLocaleString()}`;
+            document.getElementById('breakdownDays').innerText = days;
+
+            document.getElementById('daysTotalValue').innerText = days;
+            document.getElementById('netRunwayValue').innerText = `${getCurrencySymbol()}${Math.round(netRemaining).toLocaleString()}`;
+            document.getElementById('timelineSafeSpendValue').innerText = `${getCurrencySymbol()}${Math.round(averageDaily)}`;
+
+            const start = state.startDate ? new Date(state.startDate + 'T00:00:00') : null;
+            const end = state.endDate ? new Date(state.endDate + 'T00:00:00') : null;
+            const now = new Date();
+            now.setHours(0,0,0,0);
+
+            if (start && end && start <= end) {
+                const totalMs = end - start;
+                const elapsedMs = now - start;
+                
+                let daysElapsed = 0;
+                let daysRemaining = days;
+                
+                if (elapsedMs > 0) {
+                    daysElapsed = Math.min(days, Math.round(elapsedMs / (1000 * 60 * 60 * 24)));
+                    daysRemaining = days - daysElapsed;
+                }
+
+                document.getElementById('daysElapsedValue').innerText = daysElapsed;
+                document.getElementById('daysRemainingValue').innerText = daysRemaining;
+
+                let pastPercent = (daysElapsed / days) * 100;
+                document.getElementById('timelinePast').style.width = `${pastPercent}%`;
+                document.getElementById('todayDot').style.left = `${pastPercent}%`;
+                document.getElementById('todayLabel').style.left = `${pastPercent}%`;
+                
+                document.getElementById('timelineStartLabel').innerText = start.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+                document.getElementById('timelineEndLabel').innerText = end.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            }
+        }
+
+        function updateVisual() {
+            calculate();
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.wizard-step[data-step="${step}"]`).classList.add('active');
+            
+            stepIndicator.innerText = `Step ${step} of ${totalSteps}`;
+            
+            if (step === 1) {
+                backBtn.style.visibility = 'hidden';
+            } else {
+                backBtn.style.visibility = 'visible';
+            }
+
+            if (step === totalSteps) {
+                nextBtn.classList.add('hidden');
+                finishBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+                finishBtn.classList.add('hidden');
+            }
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        });
+
+        backBtn.addEventListener('click', () => {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        });
+
+        finishBtn.addEventListener('click', async () => {
+            finishBtn.disabled = true;
+            await window.electronAPI.setUserData('financial_setup', state);
+
+            document.getElementById('setupCompleteOverlay').classList.add('visible');
+            fireConfetti();
+            playFanfareSound();
+
+            setTimeout(() => {
+                window.electronAPI.changePage('dashboard.html');
+            }, 2600);
+        });
+
+        skipLink.addEventListener('click', () => {
+            window.electronAPI.changePage('dashboard.html');
+        });
+
+        loadExistingData(() => {
+            showStep(1);
+            updateVisual();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - College Finance Tracker</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+    <div class="glow-container">
+        <div class="glow-blob color-purple"></div>
+        <div class="glow-blob color-blue"></div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Menu</span>
+            <button class="close-btn" id="closeSidebarBtn">✕</button>
+        </div>
+
+        <div class="sidebar-links">
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('dashboard.html')">Dashboard</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('setup.html')">Financial Setup</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('loan.html')">Loans &amp; Tuition</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('history.html')">Expense History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('income.html')">Income History</button>
+            <button class="sidebar-link" onclick="window.electronAPI.changePage('settings.html')">Settings</button>
+        </div>
+
+        <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+    </nav>
+
+    <header class="top-bar">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <span class="app-name">College Finance Tracker</span>
+    </header>
+
+    <main class="dashboard-content settings-content">
+        <h1>Settings</h1>
+        <p class="subtitle">Manage your account and preferences.</p>
+
+        <div class="settings-grid">
+
+            <section class="settings-card">
+                <span class="settings-card-title">Email Address</span>
+                <p class="settings-card-desc">Currently signed in as <strong id="currentEmailLabel">—</strong></p>
+
+                <div class="field">
+                    <label for="newEmail">New Email Address</label>
+                    <input type="email" id="newEmail" placeholder="name@school.edu">
+                </div>
+
+                <button class="settings-save-btn" id="saveEmailBtn">Update Email</button>
+                <p class="settings-status" id="emailStatus"></p>
+            </section>
+
+            <section class="settings-card">
+                <span class="settings-card-title">Password</span>
+                <p class="settings-card-desc">Choose a new password for your account.</p>
+
+                <div class="field">
+                    <label for="newPassword">New Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="newPassword" placeholder="••••••••">
+                        <button type="button" class="toggle-password" data-target="newPassword">Show</button>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="confirmPassword" placeholder="••••••••">
+                        <button type="button" class="toggle-password" data-target="confirmPassword">Show</button>
+                    </div>
+                </div>
+
+                <button class="settings-save-btn" id="savePasswordBtn">Update Password</button>
+                <p class="settings-status" id="passwordStatus"></p>
+            </section>
+
+            <section class="settings-card">
+                <span class="settings-card-title">Google Account</span>
+                <p class="settings-card-desc" id="googleStatusDesc">Checking connection status...</p>
+
+                <div class="google-status-row" id="googleStatusRow" style="display: none;">
+                    <span class="google-status-badge" id="googleStatusBadge"></span>
+                </div>
+
+                <button class="google-btn settings-google-btn" id="connectGoogleBtn" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <span>Connect Google Account</span>
+                </button>
+                <p class="settings-status" id="googleStatus"></p>
+            </section>
+
+            <section class="settings-card">
+                <span class="settings-card-title">Currency</span>
+                <p class="settings-card-desc">Choose the currency shown across the app.</p>
+
+                <div class="field">
+                    <label for="currencySelect">Display Currency</label>
+                    <select id="currencySelect">
+                        <option value="USD">USD — US Dollar ($)</option>
+                        <option value="EUR">EUR — Euro (€)</option>
+                        <option value="GBP">GBP — British Pound (£)</option>
+                        <option value="CAD">CAD — Canadian Dollar ($)</option>
+                        <option value="AUD">AUD — Australian Dollar ($)</option>
+                        <option value="JPY">JPY — Japanese Yen (¥)</option>
+                        <option value="INR">INR — Indian Rupee (₹)</option>
+                    </select>
+                </div>
+
+                <button class="settings-save-btn" id="saveCurrencyBtn">Save Currency</button>
+                <p class="settings-status" id="currencyStatus"></p>
+            </section>
+
+            <section class="settings-card">
+                <span class="settings-card-title">Sounds</span>
+                <p class="settings-card-desc">Mute the payment fanfare and confirmation sounds across the app.</p>
+
+                <label class="toggle-row" for="muteSoundsToggle">
+                    <span class="toggle-row-label">Mute All Sounds</span>
+                    <span class="toggle-switch">
+                        <input type="checkbox" id="muteSoundsToggle">
+                        <span class="toggle-slider"></span>
+                    </span>
+                </label>
+
+                <p class="settings-status" id="soundStatus"></p>
+            </section>
+
+            <section class="settings-card danger-card">
+                <span class="settings-card-title">Danger Zone</span>
+                <p class="settings-card-desc">These actions are permanent and can't be undone.</p>
+
+                <div class="danger-row">
+                    <div class="danger-row-info">
+                        <span class="danger-row-title">Wipe All Data</span>
+                        <span class="danger-row-desc">Deletes your budget, purchases, income, and loans. Your login stays active.</span>
+                    </div>
+                    <button class="danger-btn" id="wipeDataBtn">Wipe Data</button>
+                </div>
+
+                <div class="danger-row">
+                    <div class="danger-row-info">
+                        <span class="danger-row-title">Delete Account</span>
+                        <span class="danger-row-desc">Wipes all your data and signs you out everywhere.</span>
+                    </div>
+                    <button class="danger-btn" id="deleteAccountBtn">Delete Account</button>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="confirmModalOverlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title" id="confirmModalTitle">Are you sure?</span>
+                <button class="modal-close-btn" id="closeConfirmModalBtn">✕</button>
+            </div>
+            <p class="settings-card-desc" id="confirmModalDesc"></p>
+
+            <div class="field">
+                <label for="confirmModalInput" id="confirmModalInputLabel">Type CONFIRM to proceed</label>
+                <input type="text" id="confirmModalInput" placeholder="CONFIRM">
+            </div>
+
+            <p class="inline-warning" id="confirmModalError"></p>
+            <button class="danger-btn modal-danger-btn" id="confirmModalSubmitBtn">Confirm</button>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const signOutBtn = document.getElementById('signOutBtn');
+
+        function openSidebar() {
+            sidebar.classList.add('open');
+            sidebarOverlay.classList.add('visible');
+        }
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+        }
+        hamburgerBtn.addEventListener('click', openSidebar);
+        closeSidebarBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        signOutBtn.addEventListener('click', async () => {
+            await window.electronAPI.signOut();
+            window.electronAPI.changePage('login.html');
+        });
+
+        document.querySelectorAll('.toggle-password').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.dataset.target);
+                const isHidden = target.type === 'password';
+                target.type = isHidden ? 'text' : 'password';
+                btn.innerText = isHidden ? 'Hide' : 'Show';
+            });
+        });
+
+        function setStatus(el, message, isError) {
+            el.style.color = isError ? '#f87171' : '#4ade80';
+            el.innerText = message;
+        }
+
+        const currentEmailLabel = document.getElementById('currentEmailLabel');
+        const googleStatusDesc = document.getElementById('googleStatusDesc');
+        const googleStatusRow = document.getElementById('googleStatusRow');
+        const googleStatusBadge = document.getElementById('googleStatusBadge');
+        const connectGoogleBtn = document.getElementById('connectGoogleBtn');
+        const googleStatus = document.getElementById('googleStatus');
+
+        async function loadAccountInfo() {
+            const result = await window.electronAPI.getCurrentUser();
+            if (!result.success) {
+                currentEmailLabel.innerText = 'Unknown';
+                googleStatusDesc.innerText = 'Could not load account info.';
+                return;
+            }
+
+            const user = result.user;
+            currentEmailLabel.innerText = user.email || 'Unknown';
+
+            const identities = user.identities || [];
+            const googleIdentity = identities.find((i) => i.provider === 'google');
+
+            if (googleIdentity) {
+                googleStatusDesc.innerText = 'Your account is connected to Google.';
+                googleStatusRow.style.display = 'flex';
+                googleStatusBadge.innerText = '✓ Connected';
+                googleStatusBadge.className = 'google-status-badge connected';
+                connectGoogleBtn.style.display = 'none';
+            } else {
+                googleStatusDesc.innerText = 'Your account is not connected to Google yet.';
+                googleStatusRow.style.display = 'none';
+                connectGoogleBtn.style.display = 'flex';
+            }
+        }
+
+        loadAccountInfo();
+
+        connectGoogleBtn.addEventListener('click', () => {
+            setStatus(googleStatus, 'Opening Google sign-in...', false);
+            window.electronAPI.startGoogleAuth('link');
+        });
+
+        window.electronAPI.onGoogleAuthStatus((payload) => {
+            if (payload.status === 'pending') {
+                setStatus(googleStatus, payload.message, false);
+            } else if (payload.status === 'success') {
+                setStatus(googleStatus, payload.message, false);
+                loadAccountInfo();
+            } else if (payload.status === 'error') {
+                setStatus(googleStatus, payload.message, true);
+            }
+        });
+
+        const newEmailInput = document.getElementById('newEmail');
+        const saveEmailBtn = document.getElementById('saveEmailBtn');
+        const emailStatus = document.getElementById('emailStatus');
+
+        saveEmailBtn.addEventListener('click', async () => {
+            const newEmail = newEmailInput.value.trim();
+            if (!newEmail) {
+                setStatus(emailStatus, 'Enter a new email address.', true);
+                return;
+            }
+
+            setStatus(emailStatus, 'Updating...', false);
+            const response = await window.electronAPI.updateEmail(newEmail);
+
+            if (response.success) {
+                setStatus(emailStatus, 'Check your inbox to confirm the new email address.', false);
+                newEmailInput.value = '';
+            } else {
+                setStatus(emailStatus, response.error, true);
+            }
+        });
+
+        const newPasswordInput = document.getElementById('newPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const savePasswordBtn = document.getElementById('savePasswordBtn');
+        const passwordStatus = document.getElementById('passwordStatus');
+
+        savePasswordBtn.addEventListener('click', async () => {
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            if (!newPassword || !confirmPassword) {
+                setStatus(passwordStatus, 'Fill in both password fields.', true);
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                setStatus(passwordStatus, 'Passwords do not match.', true);
+                return;
+            }
+            if (newPassword.length < 8) {
+                setStatus(passwordStatus, 'Password must be at least 8 characters long.', true);
+                return;
+            }
+
+            setStatus(passwordStatus, 'Updating...', false);
+            const response = await window.electronAPI.updatePassword(newPassword);
+
+            if (response.success) {
+                setStatus(passwordStatus, 'Password updated.', false);
+                newPasswordInput.value = '';
+                confirmPasswordInput.value = '';
+            } else {
+                setStatus(passwordStatus, response.error, true);
+            }
+        });
+
+        const currencySelect = document.getElementById('currencySelect');
+        const saveCurrencyBtn = document.getElementById('saveCurrencyBtn');
+        const currencyStatus = document.getElementById('currencyStatus');
+
+        async function loadCurrency() {
+            const result = await window.electronAPI.getUserData('currency');
+            if (result.success && result.value) {
+                currencySelect.value = result.value;
+            }
+        }
+        loadCurrency();
+
+        saveCurrencyBtn.addEventListener('click', async () => {
+            setStatus(currencyStatus, 'Saving...', false);
+            const response = await window.electronAPI.setUserData('currency', currencySelect.value);
+
+            if (response.success) {
+                localStorage.setItem('currencyCode', currencySelect.value);
+                setStatus(currencyStatus, 'Currency saved. It will be reflected across the app.', false);
+            } else {
+                setStatus(currencyStatus, response.error, true);
+            }
+        });
+
+        const muteSoundsToggle = document.getElementById('muteSoundsToggle');
+        const soundStatus = document.getElementById('soundStatus');
+
+        async function loadSoundSetting() {
+            const result = await window.electronAPI.getUserData('soundsMuted');
+            const muted = result.success && result.value === true;
+            muteSoundsToggle.checked = muted;
+            localStorage.setItem('soundsMuted', muted ? 'true' : 'false');
+        }
+        loadSoundSetting();
+
+        muteSoundsToggle.addEventListener('change', async () => {
+            const muted = muteSoundsToggle.checked;
+            localStorage.setItem('soundsMuted', muted ? 'true' : 'false');
+
+            const response = await window.electronAPI.setUserData('soundsMuted', muted);
+            if (response.success) {
+                setStatus(soundStatus, muted ? 'All sounds muted.' : 'Sounds enabled.', false);
+            } else {
+                setStatus(soundStatus, response.error, true);
+            }
+        });
+
+        const confirmModalOverlay = document.getElementById('confirmModalOverlay');
+        const closeConfirmModalBtn = document.getElementById('closeConfirmModalBtn');
+        const confirmModalTitle = document.getElementById('confirmModalTitle');
+        const confirmModalDesc = document.getElementById('confirmModalDesc');
+        const confirmModalInput = document.getElementById('confirmModalInput');
+        const confirmModalError = document.getElementById('confirmModalError');
+        const confirmModalSubmitBtn = document.getElementById('confirmModalSubmitBtn');
+        const wipeDataBtn = document.getElementById('wipeDataBtn');
+        const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+
+        let pendingAction = null;
+
+        function openConfirmModal({ title, desc, action }) {
+            confirmModalTitle.innerText = title;
+            confirmModalDesc.innerText = desc;
+            confirmModalInput.value = '';
+            confirmModalError.innerText = '';
+            pendingAction = action;
+            confirmModalOverlay.classList.add('visible');
+        }
+
+        function closeConfirmModal() {
+            confirmModalOverlay.classList.remove('visible');
+            pendingAction = null;
+        }
+
+        closeConfirmModalBtn.addEventListener('click', closeConfirmModal);
+        confirmModalOverlay.addEventListener('click', (e) => {
+            if (e.target === confirmModalOverlay) closeConfirmModal();
+        });
+
+        wipeDataBtn.addEventListener('click', () => {
+            openConfirmModal({
+                title: 'Wipe All Data?',
+                desc: "This deletes your budget, purchases, income, and loans for good. Your login isn't affected. Type CONFIRM below to continue.",
+                action: 'wipe'
+            });
+        });
+
+        deleteAccountBtn.addEventListener('click', () => {
+            openConfirmModal({
+                title: 'Delete Account?',
+                desc: 'This wipes all your data and signs you out. Type CONFIRM below to continue.',
+                action: 'delete'
+            });
+        });
+
+        confirmModalSubmitBtn.addEventListener('click', async () => {
+            if (confirmModalInput.value.trim() !== 'CONFIRM') {
+                confirmModalError.innerText = 'Type CONFIRM exactly to proceed.';
+                return;
+            }
+
+            confirmModalError.style.color = '';
+            confirmModalError.innerText = 'Working...';
+
+            if (pendingAction === 'wipe') {
+                const response = await window.electronAPI.wipeUserData();
+                if (response.success) {
+                    closeConfirmModal();
+                    alert('All your data has been wiped.');
+                } else {
+                    confirmModalError.style.color = '#f87171';
+                    confirmModalError.innerText = response.error;
+                }
+            } else if (pendingAction === 'delete') {
+                const response = await window.electronAPI.deleteAccount();
+                if (response.success) {
+                    closeConfirmModal();
+                    window.electronAPI.changePage('index.html');
+                } else {
+                    confirmModalError.style.color = '#f87171';
+                    confirmModalError.innerText = response.error;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

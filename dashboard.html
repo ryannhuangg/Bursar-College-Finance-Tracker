@@ -1166,7 +1166,7 @@
                 <div class="semester-header" style="margin-bottom: 12px;">
                     <span class="semester-title">${tabTitle}</span>
                     <div class="header-actions">
-                        <button class="afford-check-btn" id="affordCheckBtn">Can I Afford This?</button>
+			<button class="afford-check-btn" id="affordCheckBtn" ${data.noFixedBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Can I Afford This?</button>
                         <button class="log-purchase-btn log-income-btn" id="logIncomeBtn">+ Log Income</button>
                         <button class="log-purchase-btn" id="logPurchaseBtn">+ Log Purchase</button>
                     </div>

@@ -397,6 +397,20 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     cursor: default;
 }
 
+.field-disabled {
+    filter: blur(4px);
+    opacity: 0.5;
+    pointer-events: none;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.field input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: #6366f1;
+    cursor: pointer;
+}
+
 .hidden {
     display: none !important;
 }

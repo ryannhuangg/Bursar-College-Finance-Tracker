@@ -656,6 +656,12 @@ h1 {
     color: white;
 }
 
+.tag-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .tag-btn.selected {
     background-color: #6366f1;
     border-color: #6366f1;

@@ -494,6 +494,7 @@
 
         async function savePurchases(purchases) {
             await window.electronAPI.setUserData('purchases', purchases);
+            financialStatsCache = null;
         }
 
         async function loadIncome() {
@@ -503,6 +504,7 @@
 
         async function saveIncome(entries) {
             await window.electronAPI.setUserData('income', entries);
+            financialStatsCache = null;
         }
 
         const FREQUENCY_DAYS = {
@@ -757,8 +759,8 @@
             const roundedWeekend = Math.round(baseSpendUnit * weightFactor);
             
             const todayDay = now.getDay();
-            const dailySafeSpend = (todayDay === 0 || todayDay === 5 || todayDay === 6) ? roundedWeekend : roundedWeekday;
-            
+            const dailySafeSpend = data.noFixedBudget ? null : (todayDay === 0 || todayDay === 5 || todayDay === 6) ? roundedWeekend : roundedWeekday;
+
             let expectedSpendToDate = 0;
             let d = new Date(start);
             while (d < effectiveStart) {
@@ -807,6 +809,8 @@
                 return;
             }
 
+            const { dailySafeSpend, daysRemaining, netRemaining, currentNetRunway, runwayRemainingPercent, surplusDeficit, isSurplus, totalPendingReimbursements, data } = stats;
+
             if (stats.isBreak) {
                 let breakStatValue = "N/A";
                 let breakStatLabel = "Break";
@@ -844,8 +848,6 @@
                 return;
             }
 
-            const { dailySafeSpend, daysRemaining, netRemaining, currentNetRunway, runwayRemainingPercent, surplusDeficit, isSurplus, totalPendingReimbursements } = stats;
-
             container.innerHTML = `
                 <div class="semester-header">
                     <span class="semester-title">Your Semester</span>
@@ -853,17 +855,17 @@
                 </div>
                 <div class="semester-stats">
                     <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${dailySafeSpend < 0 ? '#f87171' : dailySafeSpend < 15 ? '#f59e0b' : '#4ade80'}">
-                            ${getCurrencySymbol()}${dailySafeSpend.toLocaleString()}
+                        <span class="semester-stat-value" style="color: ${data.noFixedBudget ? '#a1a1aa' : (dailySafeSpend < 0 ? '#f87171' : dailySafeSpend < 15 ? '#f59e0b' : '#4ade80')}">
+                            ${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + dailySafeSpend.toLocaleString()}
                         </span>
                         <span class="semester-stat-label">Today's Limit</span>
                     </div>
                     <div class="semester-stat">
-                        <span class="semester-stat-value">${getCurrencySymbol()}${Math.round(netRemaining).toLocaleString()}</span>
+                        <span class="semester-stat-value">${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + Math.round(netRemaining).toLocaleString()}</span>
                         <span class="semester-stat-label">Total Runway</span>
                     </div>
                     <div class="semester-stat">
-                        <span class="semester-stat-value">${getCurrencySymbol()}${Math.round(currentNetRunway).toLocaleString()}</span>
+                        <span class="semester-stat-value">${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + Math.round(currentNetRunway).toLocaleString()}</span>
                         <span class="semester-stat-label">Net Runway</span>
                     </div>
                     <div class="semester-stat">
@@ -871,19 +873,21 @@
                         <span class="semester-stat-label">Days Left</span>
                     </div>
                     <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${isSurplus ? '#4ade80' : '#f87171'}">
-                            ${getCurrencySymbol()}${Math.round(Math.abs(surplusDeficit)).toLocaleString()}
+                        <span class="semester-stat-value" style="color: ${data.noFixedBudget ? '#a1a1aa' : (isSurplus ? '#4ade80' : '#f87171')}">
+                            ${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + Math.round(Math.abs(surplusDeficit)).toLocaleString()}
                         </span>
-                        <span class="semester-stat-label">${isSurplus ? 'Surplus' : 'Deficit'}</span>
+                        <span class="semester-stat-label">${data.noFixedBudget ? 'Surplus' : (isSurplus ? 'Surplus' : 'Deficit')}</span>
                     </div>
                     <div class="semester-stat">
                         <span class="semester-stat-value" style="color: #6366f1;">${getCurrencySymbol()}${Math.round(totalPendingReimbursements).toLocaleString()}</span>
                         <span class="semester-stat-label">Pending Money</span>
                     </div>
                 </div>
+                ${data.noFixedBudget ? '' : `
                 <div class="semester-bar-track">
                     <div class="semester-bar-fill" style="width: ${runwayRemainingPercent}%;"></div>
                 </div>
+                `}
             `;
         }
 
@@ -927,10 +931,10 @@
             if (currentSpendTab === 'daily') {
                 displayPurchases = purchases.filter(p => p.date === todayStr);
                 timeframePurchases = displayPurchases.filter(p => !p.fromSurplus && !p.isGoal);
-                timeframeLimit = dailySafeSpend;
+                timeframeLimit = data.noFixedBudget ? null : dailySafeSpend;
                 limitLabel = "Today's Limit";
                 spentLabel = "Spent Today";
-                tabTitle = 'Daily Safe Spend';
+                tabTitle = data.noFixedBudget ? 'Daily Spend' : 'Daily Safe Spend';
                 emptyText = 'No purchases today.';
             } else if (currentSpendTab === 'weekly') {
                 displayPurchases = purchases.filter(p => p.date >= weekRange.start && p.date <= weekRange.end);
@@ -944,10 +948,10 @@
                     limit += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
                     cd.setDate(cd.getDate() + 1);
                 }
-                timeframeLimit = limit;
+                timeframeLimit = data.noFixedBudget ? null : limit;
                 limitLabel = "Week's Limit";
                 spentLabel = "Spent This Week";
-                tabTitle = 'Weekly Safe Spend';
+                tabTitle = data.noFixedBudget ? 'Weekly Spend' : 'Weekly Safe Spend';
                 emptyText = 'No purchases this week.';
             } else if (currentSpendTab === 'monthly') {
                 displayPurchases = purchases.filter(p => p.date >= monthRange.start && p.date <= monthRange.end);
@@ -961,10 +965,10 @@
                     limit += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
                     cd.setDate(cd.getDate() + 1);
                 }
-                timeframeLimit = limit;
+                timeframeLimit = data.noFixedBudget ? null : limit;
                 limitLabel = "Month's Limit";
                 spentLabel = "Spent This Month";
-                tabTitle = 'Monthly Safe Spend';
+                tabTitle = data.noFixedBudget ? 'Monthly Spend' : 'Monthly Safe Spend';
                 emptyText = 'No purchases this month.';
             }
 
@@ -972,12 +976,12 @@
             timeframePurchases.sort((a, b) => a.tag.localeCompare(b.tag));
 
             const timeframeSpent = timeframePurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
-            const isOver = isBreak ? false : (timeframeSpent > timeframeLimit);
+            const isOver = isBreak || data.noFixedBudget ? false : (timeframeSpent > timeframeLimit);
 
             let dailyBarWidth = '0%';
             let dailyBarBackground = '';
 
-            if (isBreak) {
+            if (isBreak || data.noFixedBudget) {
                 dailyBarWidth = timeframeSpent > 0 ? '100%' : '0%';
                 dailyBarBackground = 'linear-gradient(90deg, #4ade80, #16a34a)';
             } else if (isOver) {
@@ -1119,7 +1123,7 @@
                 let cumulativePercent = 0;
                 let svgPaths = '';
                 
-                const pieTotal = Math.max(timeframeLimit, timeframeSpent) > 0 ? Math.max(timeframeLimit, timeframeSpent) : 1;
+                const pieTotal = Math.max(Number(timeframeLimit) || 0, timeframeSpent) > 0 ? Math.max(Number(timeframeLimit) || 0, timeframeSpent) : 1;
                 
                 svgPaths += `<circle r="1" cx="0" cy="0" fill="#26262b"></circle>`;
 
@@ -1176,10 +1180,10 @@
 
                 <div class="semester-stats pie-adjusted">
                     <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${isBreak ? '#a1a1aa' : (timeframeLimit < 0 ? '#f87171' : timeframeLimit < (currentSpendTab === 'daily' ? 15 : currentSpendTab === 'weekly' ? 105 : 450) ? '#f59e0b' : '#4ade80')}">
-                            ${isBreak ? 'N/A' : getCurrencySymbol() + Math.round(timeframeLimit).toLocaleString()}
+                        <span class="semester-stat-value" style="color: ${(isBreak || data.noFixedBudget) ? '#a1a1aa' : (timeframeLimit < 0 ? '#f87171' : timeframeLimit < (currentSpendTab === 'daily' ? 15 : currentSpendTab === 'weekly' ? 105 : 450) ? '#f59e0b' : '#4ade80')}">
+                            ${(isBreak || data.noFixedBudget) ? 'N/A' : getCurrencySymbol() + Math.round(timeframeLimit).toLocaleString()}
                         </span>
-                        <span class="semester-stat-label">${limitLabel} ${weightFactor > 1 && currentSpendTab === 'daily' && getWeightForDate(new Date(), weightFactor) > 1 ? '<span class="boost-badge">WEEKEND BOOST</span>' : ''}</span>
+                        <span class="semester-stat-label">${limitLabel} ${(!data.noFixedBudget && weightFactor > 1 && currentSpendTab === 'daily' && getWeightForDate(new Date(), weightFactor) > 1) ? '<span class="boost-badge">WEEKEND BOOST</span>' : ''}</span>
                     </div>
                     <div class="semester-stat">
                         <span class="semester-stat-value" style="color: ${isOver ? '#f87171' : '#ffffff'}">${getCurrencySymbol()}${timeframeSpent.toFixed(2)}</span>
@@ -1409,21 +1413,24 @@
             const goalData = await loadGoalData();
 
             if (!goalData || !goalData.goals || goalData.goals.length === 0) {
+                const noBudget = stats.data.noFixedBudget;
                 container.innerHTML = `
                     <div class="setup-prompt">
                         <div>
                             <span class="setup-prompt-title">Set a purchase goal</span>
-                            <span class="setup-prompt-desc">Put a target purchase — a laptop, a trip — in your sights and dedicate a slice of your surplus toward it.</span>
+                            <span class="setup-prompt-desc">${noBudget ? "Goals are funded from your surplus, which isn't tracked without a fixed budget." : "Put a target purchase — a laptop, a trip — in your sights and dedicate a slice of your surplus toward it."}</span>
                         </div>
-                        <button class="setup-prompt-btn" id="openGoalModalBtn">Set Goal</button>
+                        <button class="setup-prompt-btn" id="openGoalModalBtn" ${noBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Set Goal</button>
                     </div>
                 `;
-                document.getElementById('openGoalModalBtn').addEventListener('click', openGoalModal);
+                if (!noBudget) {
+                    document.getElementById('openGoalModalBtn').addEventListener('click', openGoalModal);
+                }
                 return;
             }
 
             const goals = goalData.goals;
-            const totalSurplus = stats.isSurplus ? stats.surplusDeficit : 0;
+            const totalSurplus = stats.isSurplus && !stats.data.noFixedBudget ? stats.surplusDeficit : 0;
 
             let actualSaved = [];
             let isCapped = [];
@@ -1475,6 +1482,8 @@
                 let statusNote;
                 if (isComplete) {
                     statusNote = "You've saved enough to cover it — nice work.";
+                } else if (stats.data.noFixedBudget) {
+                    statusNote = "Since you have no fixed budget, surplus tracking is disabled. Goals can only be manually funded via purchases.";
                 } else if (stats.isSurplus) {
                     statusNote = `${progressPercent.toFixed(0)}% of the way there, based on ${allocationPercent}% of your current surplus.`;
                 } else {
@@ -1488,7 +1497,7 @@
                 const header = index === 0
                     ? `<div class="semester-header">
                         <span class="semester-title" style="display: flex; align-items: center;">${escapeHtml(goal.name)}${checkmarkHtml}</span>
-                        <button class="semester-edit-btn" id="editGoalBtn">Edit</button>
+                        <button class="semester-edit-btn" id="editGoalBtn" ${stats.data.noFixedBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Edit</button>
                        </div>`
                     : `<div class="semester-header">
                         <span class="semester-title" style="display: flex; align-items: center;">${escapeHtml(goal.name)}${checkmarkHtml}</span>
@@ -1915,16 +1924,29 @@
 
         document.querySelectorAll('#fundSourceGroup .tag-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.disabled) return;
                 selectedFundSource = btn.dataset.source;
                 renderFundSourceSelector();
             });
         });
+
+        async function applyFundSourceAvailability() {
+            const stats = await getFinancialStats();
+            const surplusBtn = document.querySelector('#fundSourceGroup .tag-btn[data-source="surplus"]');
+            const noBudget = !!(stats && stats.data.noFixedBudget);
+            surplusBtn.disabled = noBudget;
+            surplusBtn.title = noBudget ? "Not available without a fixed budget" : '';
+        }
 
         async function updateFundSourceNote() {
             const note = document.getElementById('fundSourceNote');
             const stats = await getFinancialStats();
             if (!stats || stats.isBreak) {
                 note.innerText = '';
+                return;
+            }
+            if (stats.data.noFixedBudget) {
+                note.innerText = "You don't have a fixed budget. Surplus funding doesn't apply.";
                 return;
             }
             note.innerText = stats.isSurplus
@@ -2198,6 +2220,7 @@
             }
 
             updateFundSourceNote();
+            applyFundSourceAvailability();
 
             subscriptionError.innerText = '';
             subscriptionNameInput.value = '';
@@ -2694,7 +2717,11 @@
 
             let verdictLabel, verdictColor, detail;
 
-            if (amount <= currentNetRunway) {
+            if (data.noFixedBudget) {
+                verdictLabel = 'Yes';
+                verdictColor = '#4ade80';
+                detail = `You don't have a fixed budget set, so there are no limits stopping you. Logging this will simply increase your total tracked spending by ${getCurrencySymbol()}${amount.toLocaleString()}.`;
+            } else if (amount <= currentNetRunway) {
                 if (surplusDeficit > 0 && amount <= surplusDeficit) {
                     const percent = Math.round((amount / surplusDeficit) * 100);
                     const leftover = Math.round(surplusDeficit - amount);

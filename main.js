@@ -80,7 +80,7 @@ if (!gotTheLock) {
             width: 800,
             height: 600,
             backgroundColor: '#0a0a0c',
-            titleBarStyle: 'hidden',
+            frame: true,
             titleBarOverlay: {
                 color: '#0a0a0c',
                 symbolColor: '#ffffff',

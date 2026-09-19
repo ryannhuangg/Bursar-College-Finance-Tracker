@@ -250,6 +250,7 @@
 
         document.querySelectorAll('#fundSourceGroup .tag-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.disabled) return;
                 selectedFundSource = btn.dataset.source;
                 renderFundSourceSelector();
             });
@@ -262,9 +263,21 @@
                 note.innerText = '';
                 return;
             }
+            if (stats.data.noFixedBudget) {
+                note.innerText = "You don't have a fixed budget. Surplus funding doesn't apply.";
+                return;
+            }
             note.innerText = stats.isSurplus
                 ? `You currently have ${getCurrencySymbol()}${Math.round(stats.surplusDeficit).toLocaleString()} in surplus available.`
                 : `You're currently ${getCurrencySymbol()}${Math.round(Math.abs(stats.surplusDeficit)).toLocaleString()} in deficit — drawing from surplus isn't recommended right now.`;
+        }
+
+        async function applyFundSourceAvailability() {
+            const stats = await getFinancialStats();
+            const surplusBtn = document.querySelector('#fundSourceGroup .tag-btn[data-source="surplus"]');
+            const noBudget = !!(stats && stats.data.noFixedBudget);
+            surplusBtn.disabled = noBudget;
+            surplusBtn.title = noBudget ? "Not available without a fixed budget" : '';
         }
 
         const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -979,6 +992,7 @@
             }
 
             updateFundSourceNote();
+            applyFundSourceAvailability();
 
             subscriptionError.innerText = '';
             subscriptionNameInput.value = '';

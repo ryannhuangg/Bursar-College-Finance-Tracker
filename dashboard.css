@@ -210,6 +210,12 @@ h1 {
     border-color: #3f3f46;
 }
 
+.semester-edit-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .tabs-container {
     display: flex;
     gap: 8px;
@@ -342,6 +348,13 @@ h1 {
 
 .setup-prompt-btn:hover {
     background-color: #4f46e5;
+}
+
+.setup-prompt-btn:disabled {
+    background-color: #3f3f46;
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .log-purchase-btn {
@@ -630,6 +643,12 @@ h1 {
 .tag-btn:hover {
     border-color: #6366f1;
     color: white;
+}
+
+.tag-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .tag-btn.selected {

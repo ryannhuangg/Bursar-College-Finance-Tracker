@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Setup - College Finance Tracker</title>
     <link rel="stylesheet" href="setup.css">
+    <link rel="stylesheet" href="settings.css">
     <script src="currency.js"></script>
 </head>
 <body>
@@ -66,7 +67,7 @@
                     <h2>Your starting stash</h2>
                     <p class="step-desc">How much money do you have to survive this timeline? Break it down below.</p>
 
-                    <div class="field">
+                    <div class="field" id="checkingSavingsField">
                         <label for="checkingSavings">Current Cash On Hand <span class="field-hint">(cash, checkings/savings accounts, etc.)</span></label>
                         <div class="dollar-input">
                             <span class="dollar-sign">$</span>
@@ -74,7 +75,7 @@
                         </div>
                     </div>
 
-                    <div class="field">
+                    <div class="field" id="financialAidField">
                         <label for="financialAidRefund">Financial Aid <span class="field-hint">(you can add this later with the "Add Income" feature)</span></label>
                         <div class="dollar-input">
                             <span class="dollar-sign">$</span>
@@ -82,12 +83,17 @@
                         </div>
                     </div>
 
-                    <div class="field">
+                    <div class="field" id="parentContributionField">
                         <label for="parentContribution">Family &amp; External Support <span class="field-hint">(you can add this later with the "Add Income" feature)</span></label>
                         <div class="dollar-input">
                             <span class="dollar-sign">$</span>
                             <input type="number" id="parentContribution" min="0" step="1" placeholder="0">
                         </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="nofixedbudgettoggle">I don't have a fixed budget — just track my spending</label>
+                        <input type="checkbox" id="nofixedbudgettoggle">
                     </div>
                 </div>
 
@@ -138,28 +144,45 @@
                     <h2 id="realityHeadline">Here's the reality</h2>
                     <p class="step-desc" id="realitySub">Your average daily safe spend for the semester.</p>
 
-                    <div class="reality-card">
-                        <span class="reality-label">Average Daily Safe Spend</span>
-                        <span class="reality-number" id="dailySafeSpendDisplay">$0</span>
-                        <span class="reality-caption" id="realityCaption"></span>
+                    <div id="budgetRealityGroup">
+                        <div class="reality-card">
+                            <span class="reality-label">Average Daily Safe Spend</span>
+                            <span class="reality-number" id="dailySafeSpendDisplay">$0</span>
+                            <span class="reality-caption" id="realityCaption"></span>
+                        </div>
+
+                        <div class="reality-breakdown">
+                            <div class="breakdown-row">
+                                <span>Starting Stash</span>
+                                <span id="breakdownIn">$0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span>Core Expenses</span>
+                                <span id="breakdownOut">$0</span>
+                            </div>
+                            <div class="breakdown-row breakdown-net">
+                                <span>Net runway</span>
+                                <span id="breakdownNet">$0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span>Days in semester</span>
+                                <span id="breakdownDays">0</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="reality-breakdown">
-                        <div class="breakdown-row">
-                            <span>Starting Stash</span>
-                            <span id="breakdownIn">$0</span>
+                    <div id="noBudgetRealityGroup" class="hidden">
+                        <div class="reality-card">
+                            <span class="reality-label">Tracking Mode</span>
+                            <span class="reality-number" style="color: #6366f1;">No Limit</span>
+                            <span class="reality-caption">You won't get a daily spending cap — every purchase you log just adds to your running totals.</span>
                         </div>
-                        <div class="breakdown-row">
-                            <span>Core Expenses</span>
-                            <span id="breakdownOut">$0</span>
-                        </div>
-                        <div class="breakdown-row breakdown-net">
-                            <span>Net runway</span>
-                            <span id="breakdownNet">$0</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Days in semester</span>
-                            <span id="breakdownDays">0</span>
+
+                        <div class="reality-breakdown">
+                            <div class="breakdown-row">
+                                <span>Days in semester</span>
+                                <span id="noBudgetDays">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -205,7 +228,7 @@
                         <span class="timeline-stat-label">Total Days</span>
                     </div>
                 </div>
-                <div class="timeline-readout financial-readout">
+                <div class="timeline-readout financial-readout" id="financialReadoutRow">
                     <div class="timeline-stat">
                         <span class="timeline-stat-value" id="netRunwayValue">—</span>
                         <span class="timeline-stat-label">Net Runway</span>
@@ -242,7 +265,8 @@
             rentUtilities: 0,
             oneTimeExpenses: 0,
             weeklyIncome: 0,
-            weekendWeight: 1.5 
+            weekendWeight: 1.5,
+            noFixedBudget: false
         };
 
         const PAY_PERIODS_PER_YEAR = {
@@ -471,6 +495,10 @@
                         state[field] = saved[field] || 0;
                         document.getElementById(field).value = saved[field] || '';
                     });
+
+                    state.noFixedBudget = !!saved.noFixedBudget;
+                    document.getElementById('nofixedbudgettoggle').checked = state.noFixedBudget;
+                    applyNoBudgetVisualState(state.noFixedBudget);
                 }
                 window.electronAPI.getUserData('steady_income').then((steadyResponse) => {
                     const steady = (steadyResponse.success && steadyResponse.value) ? steadyResponse.value : null;
@@ -518,6 +546,22 @@
                 state[field] = Number(e.target.value) || 0;
                 updateVisual();
             });
+        });
+
+        function applyNoBudgetVisualState(checked) {
+            const fieldsToBlur = ['checkingSavingsField', 'financialAidField', 'parentContributionField'];
+            fieldsToBlur.forEach((id) => {
+                const wrapper = document.getElementById(id);
+                wrapper.classList.toggle('field-disabled', checked);
+                const input = wrapper.querySelector('input');
+                if (input) input.disabled = checked;
+            });
+        }
+
+        document.getElementById('nofixedbudgettoggle').addEventListener('change', (e) => {
+            state.noFixedBudget = e.target.checked;
+            applyNoBudgetVisualState(state.noFixedBudget);
+            updateVisual();
         });
 
         function getWeightForDate(d, weightFactor) {
@@ -582,6 +626,27 @@
         }
 
         function updateDOM(days, totalIn, totalOut, netRemaining, averageDaily, weekdaySpend, weekendSpend) {
+            const budgetRealityGroup = document.getElementById('budgetRealityGroup');
+            const noBudgetRealityGroup = document.getElementById('noBudgetRealityGroup');
+            const financialReadoutRow = document.getElementById('financialReadoutRow');
+            const realityHeadlineEl = document.getElementById('realityHeadline');
+            const realitySubEl = document.getElementById('realitySub');
+
+            if (state.noFixedBudget) {
+                budgetRealityGroup.classList.add('hidden');
+                noBudgetRealityGroup.classList.remove('hidden');
+                financialReadoutRow.classList.add('hidden');
+                realityHeadlineEl.innerText = "You're all set!";
+                realitySubEl.innerText = "No daily limit — just log purchases and keep an eye on your totals.";
+                document.getElementById('noBudgetDays').innerText = days;
+            } else {
+                budgetRealityGroup.classList.remove('hidden');
+                noBudgetRealityGroup.classList.add('hidden');
+                financialReadoutRow.classList.remove('hidden');
+                realityHeadlineEl.innerText = "Here's the reality";
+                realitySubEl.innerText = "Your average daily safe spend for the semester.";
+            }
+
             document.getElementById('previewWeekday').innerText = `${getCurrencySymbol()}${weekdaySpend}`;
             document.getElementById('previewWeekend').innerText = `${getCurrencySymbol()}${weekendSpend}`;
 
@@ -672,16 +737,26 @@
             }
         }
 
+        function getAdjacentStep(current, direction) {
+            let next = current + direction;
+            if (next === 4 && state.noFixedBudget) {
+                next += direction;
+            }
+            return next;
+        }
+
         nextBtn.addEventListener('click', () => {
-            if (currentStep < totalSteps) {
-                currentStep++;
+            const next = getAdjacentStep(currentStep, 1);
+            if (next <= totalSteps) {
+                currentStep = next;
                 showStep(currentStep);
             }
         });
 
         backBtn.addEventListener('click', () => {
-            if (currentStep > 1) {
-                currentStep--;
+            const prev = getAdjacentStep(currentStep, -1);
+            if (prev >= 1) {
+                currentStep = prev;
                 showStep(currentStep);
             }
         });

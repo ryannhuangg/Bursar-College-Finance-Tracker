@@ -25,5 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     deleteAccount: () => ipcRenderer.invoke('delete-account'),
 
-    onGoogleAuthStatus: (callback) => ipcRenderer.on('google-auth-status', (event, payload) => callback(payload))
+    onGoogleAuthStatus: (callback) => ipcRenderer.on('google-auth-status', (event, payload) => callback(payload)),
+
+    onEmailChangeStatus: (callback) => ipcRenderer.on('email-change-status', (event, payload) => callback(payload))
 });

@@ -144,6 +144,21 @@
                 <p class="settings-status" id="soundStatus"></p>
             </section>
 
+            <section class="settings-card">
+                <span class="settings-card-title">Fixed Budget</span>
+                <p class="settings-card-desc">Turn this off to just track spending, with no daily limit, surplus, or purchase goals.</p>
+
+                <label class="toggle-row" for="noBudgetToggle">
+                    <span class="toggle-row-label">I don't have a fixed budget</span>
+                    <span class="toggle-switch">
+                        <input type="checkbox" id="noBudgetToggle">
+                        <span class="toggle-slider"></span>
+                    </span>
+                </label>
+
+                <p class="settings-status" id="noBudgetStatus"></p>
+            </section>
+
             <section class="settings-card danger-card">
                 <span class="settings-card-title">Danger Zone</span>
                 <p class="settings-card-desc">These actions are permanent and can't be undone.</p>
@@ -287,15 +302,36 @@
                 return;
             }
 
-            setStatus(emailStatus, 'Updating...', false);
-            const response = await window.electronAPI.updateEmail(newEmail);
-
-            if (response.success) {
-                setStatus(emailStatus, 'Check your inbox to confirm the new email address.', false);
-                newEmailInput.value = '';
-            } else {
-                setStatus(emailStatus, response.error, true);
+            if (!newEmailInput.checkValidity()) {
+                setStatus(emailStatus, 'Enter a valid email address.', true);
+                return;
             }
+            if (newEmail.toLowerCase() === currentEmailLabel.innerText.toLowerCase()) {
+                setStatus(emailStatus, 'That is already your email address.', true);
+                return;
+            }
+
+            saveEmailBtn.disabled = true;
+            setStatus(emailStatus, 'Updating...', false);
+            try {
+                const response = await window.electronAPI.updateEmail(newEmail);
+
+                if (response.success) {
+                    setStatus(emailStatus, 'Check your inbox to confirm the new email address.', false);
+                    newEmailInput.value = '';
+                } else {
+                    setStatus(emailStatus, response.error || 'Could not update email.', true);
+                }
+            } catch (err) {
+                setStatus(emailStatus, 'Something went wrong. Try again.', true);
+            } finally {
+                saveEmailBtn.disabled = false;
+            }
+        });
+
+        window.electronAPI.onEmailChangeStatus((payload) => {
+            setStatus(emailStatus, payload.message, payload.status === 'error');
+            if (payload.status === 'success') loadAccountInfo();
         });
 
         const newPasswordInput = document.getElementById('newPassword');
@@ -320,15 +356,22 @@
                 return;
             }
 
+            savePasswordBtn.disabled = true;
             setStatus(passwordStatus, 'Updating...', false);
-            const response = await window.electronAPI.updatePassword(newPassword);
+            try {
+                const response = await window.electronAPI.updatePassword(newPassword);
 
-            if (response.success) {
-                setStatus(passwordStatus, 'Password updated.', false);
-                newPasswordInput.value = '';
-                confirmPasswordInput.value = '';
-            } else {
-                setStatus(passwordStatus, response.error, true);
+                if (response.success) {
+                    setStatus(passwordStatus, 'Password updated.', false);
+                    newPasswordInput.value = '';
+                    confirmPasswordInput.value = '';
+                } else {
+                    setStatus(passwordStatus, response.error || 'Could not update password.', true);
+                }
+            } catch (err) {
+                setStatus(passwordStatus, 'Something went wrong. Try again.', true);
+            } finally {
+                savePasswordBtn.disabled = false;
             }
         });
 
@@ -376,6 +419,35 @@
                 setStatus(soundStatus, muted ? 'All sounds muted.' : 'Sounds enabled.', false);
             } else {
                 setStatus(soundStatus, response.error, true);
+            }
+        });
+
+        const noBudgetToggle = document.getElementById('noBudgetToggle');
+        const noBudgetStatus = document.getElementById('noBudgetStatus');
+
+        async function loadBudgetSetting() {
+            const result = await window.electronAPI.getUserData('financial_setup');
+            if (result.success && result.value) {
+                noBudgetToggle.checked = !!result.value.noFixedBudget;
+            } else {
+                noBudgetToggle.disabled = true;
+                setStatus(noBudgetStatus, 'Complete your financial setup first.', true);
+            }
+        }
+        loadBudgetSetting();
+
+        noBudgetToggle.addEventListener('change', async () => {
+            const result = await window.electronAPI.getUserData('financial_setup');
+            if (!result.success || !result.value) return;
+
+            const noFixedBudget = noBudgetToggle.checked;
+            const response = await window.electronAPI.setUserData('financial_setup', { ...result.value, noFixedBudget });
+
+            if (response.success) {
+                setStatus(noBudgetStatus, noFixedBudget ? "Switched to tracking-only mode — no daily limit or goals." : 'Fixed budget re-enabled.', false);
+            } else {
+                noBudgetToggle.checked = !noFixedBudget;
+                setStatus(noBudgetStatus, response.error, true);
             }
         });
 

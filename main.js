@@ -152,6 +152,69 @@ if (!gotTheLock) {
         }
     });
 
+    ipcMain.handle('update-email', async (event, { newEmail }) => {
+        try {
+            const { error } = await supabase.auth.updateUser(
+                { email: newEmail },
+                { emailRedirectTo: `${PROTOCOL}://email-confirmed` }
+            );
+            if (error) return { success: false, error: error.message };
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('update-password', async (event, { newPassword }) => {
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) return { success: false, error: error.message };
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    async function deleteAllUserData() {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData?.user) {
+            return { userId: null, error: 'Not signed in.' };
+        }
+
+        const { error } = await supabase
+            .from('user_data')
+            .delete()
+            .eq('user_id', userData.user.id);
+
+        return { userId: userData.user.id, error: error ? error.message : null };
+    }
+
+    ipcMain.handle('wipe-user-data', async () => {
+        try {
+            const { error } = await deleteAllUserData();
+            if (error) return { success: false, error };
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('delete-account', async () => {
+        try {
+            const { error: wipeError } = await deleteAllUserData();
+            if (wipeError) return { success: false, error: wipeError };
+
+            const { error } = await supabase.rpc('delete_user');
+            if (error) return { success: false, error: error.message };
+
+            await supabase.auth.signOut({ scope: 'local' });
+            clearSession();
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
     ipcMain.handle('supabase-signout', async () => {
         try {
             const { error } = await supabase.auth.signOut();
@@ -238,11 +301,60 @@ if (!gotTheLock) {
         }
     });
 
+    function sendEmailChangeStatus(status, message) {
+        if (mainWindow) {
+            mainWindow.webContents.send('email-change-status', { status, message });
+        }
+    }
+
+    async function handleEmailChangeCallback(params) {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+
+        const errorDescription = params.get('error_description');
+        if (errorDescription) {
+            sendEmailChangeStatus('error', `${errorDescription}. Request a new email change.`);
+            return;
+        }
+
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (!accessToken || !refreshToken) {
+            const message = params.get('message');
+            if (message) {
+                sendEmailChangeStatus('pending', message);
+            } else {
+                sendEmailChangeStatus('error', 'Email confirmation failed. Request a new email change.');
+            }
+            return;
+        }
+
+        const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+        if (error) {
+            sendEmailChangeStatus('error', error.message);
+            return;
+        }
+
+        if (loadSession()) saveSession({ access_token: accessToken, refresh_token: refreshToken });
+        sendEmailChangeStatus('success', 'Email updated.');
+    }
+
     async function handleAuthCallback(url) {
         try {
             const parsedUrl = new URL(url);
             const fragment = parsedUrl.hash.startsWith('#') ? parsedUrl.hash.slice(1) : parsedUrl.hash;
             const params = new URLSearchParams(fragment);
+
+            if (parsedUrl.host === 'email-confirmed') {
+                await handleEmailChangeCallback(params);
+                return;
+            }
 
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');

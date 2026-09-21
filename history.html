@@ -231,6 +231,15 @@
             const filtered = filterPurchases(purchases).sort((a, b) => b.date.localeCompare(a.date));
             renderHistoryTable(filtered, colorFor);
             renderChart(filtered, colorFor);
+            refreshAffordAvailability();
+        }
+
+        async function refreshAffordAvailability() {
+            const stats = await getFinancialStats();
+            const noBudget = !!stats?.data.noFixedBudget;
+            const btn = $('affordCheckBtn');
+            btn.disabled = noBudget;
+            btn.title = noBudget ? 'Not available without a fixed budget' : '';
         }
 
         const affordModalOverlay = $('affordModalOverlay');
@@ -271,6 +280,11 @@
             const stats = await getFinancialStats();
             if (!stats || stats.isBreak) {
                 showAffordVerdict('#f59e0b', 'Cannot Calculate', 'You are not currently in an active semester.');
+                return;
+            }
+
+            if (stats.data.noFixedBudget) {
+                showAffordVerdict('#4ade80', 'Yes', `You don't have a fixed budget set, so there are no limits stopping you. Logging this will simply increase your total tracked spending by ${formatWhole(amount)}.`);
                 return;
             }
 

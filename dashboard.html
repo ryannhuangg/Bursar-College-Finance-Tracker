@@ -136,102 +136,6 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="purchaseModalOverlay">
-        <div class="modal-card">
-            <div class="modal-header">
-                <span class="modal-title" id="purchaseModalTitleText">Log a Purchase</span>
-                <button class="modal-close-btn" id="closePurchaseModalBtn">✕</button>
-            </div>
-
-            <div class="collapsible-section" id="oneTimePurchaseFields">
-                <div class="field">
-                    <label for="purchaseAmount">Amount</label>
-                    <div class="dollar-input">
-                        <span class="dollar-sign">$</span>
-                        <input type="number" id="purchaseAmount" min="0" step="0.01" placeholder="0.00">
-                    </div>
-                </div>
-
-                <div class="field">
-                    <label for="purchaseDescription">What was it?</label>
-                    <input type="text" id="purchaseDescription" placeholder="Coffee, groceries...">
-                </div>
-
-                <div class="field" id="categoryField">
-                    <label>Category</label>
-                    <div class="tag-group" id="purchaseTags"></div>
-                </div>
-
-                <div class="field">
-                    <label>Fund This With</label>
-                    <div class="tag-group" id="fundSourceGroup">
-                        <button type="button" class="tag-btn selected" data-source="daily">Daily Budget</button>
-                        <button type="button" class="tag-btn" data-source="surplus">Surplus</button>
-                    </div>
-                    <p class="category-limit-note" id="fundSourceNote"></p>
-                </div>
-
-                <div class="field-checkbox">
-                    <input type="checkbox" id="purchaseSplitToggle">
-                    <label for="purchaseSplitToggle">Split this purchase</label>
-                </div>
-
-                <div class="field" id="reimbursementField" style="display: none;">
-                    <label for="purchaseReimbursement">Expected Reimbursement</label>
-                    <div class="dollar-input">
-                        <span class="dollar-sign">$</span>
-                        <input type="number" id="purchaseReimbursement" min="0" step="0.01" placeholder="0.00">
-                    </div>
-                </div>
-
-                <p class="inline-warning" id="purchaseError"></p>
-
-                <button class="modal-submit-btn" id="submitPurchaseBtn">Log Purchase</button>
-            </div>
-
-            <button class="steady-income-toggle" id="subscriptionToggleBtn" type="button">+ Set up a subscription</button>
-
-            <div class="steady-income-section collapsible-section collapsed" id="subscriptionSection">
-                <div class="steady-income-title-row">
-                    <p class="steady-income-desc">Have a recurring subscription, like a gym membership? Set it once and it'll auto-charge itself on the billing date.</p>
-                </div>
-
-                <div id="subscriptionListContainer"></div>
-
-                <div class="field">
-                    <label for="subscriptionName">Subscription Name</label>
-                    <input type="text" id="subscriptionName" placeholder="Spotify, gym membership...">
-                </div>
-
-                <div class="field-row">
-                    <div class="field">
-                        <label for="subscriptionAmount">Amount</label>
-                        <div class="dollar-input">
-                            <span class="dollar-sign">$</span>
-                            <input type="number" id="subscriptionAmount" min="0" step="0.01" placeholder="0.00">
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label for="subscriptionFrequency">Billed</label>
-                        <select id="subscriptionFrequency">
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="field">
-                    <label for="subscriptionStartDate">First Billing Date <span class="field-hint">(next one auto-charges on schedule)</span></label>
-                    <input type="date" id="subscriptionStartDate">
-                </div>
-
-                <p class="inline-warning" id="subscriptionError"></p>
-
-                <button class="modal-submit-btn" id="saveSubscriptionBtn">Add Subscription</button>
-            </div>
-        </div>
-    </div>
-
     <div class="modal-overlay" id="incomeModalOverlay">
         <div class="modal-card">
             <div class="modal-header">
@@ -359,320 +263,19 @@
         </div>
     </div>
 
-    <div id="undoToast" class="undo-toast">
-        <span>Goal purchased.</span>
-        <button id="undoBtn">Undo</button>
-    </div>
-
-    <div id="globalTooltip" class="global-tooltip"></div>
-
+    <script src="common.js"></script>
     <script>
+        const $ = (id) => document.getElementById(id);
+
         let currentSpendTab = 'daily';
         let currentRecentTab = 'purchases';
-        let undoTimeout = null;
-        let undoType = '';
-        
-        let lastDeletedGoal = null;
-        let lastDeletedGoalIndex = -1;
-        let lastGoalPurchaseId = null;
-        let lastGoalsSnapshot = null;
+        let editingIncomeId = null;
 
-        let lastDeletedPurchase = null;
-        let lastDeletedPurchaseIndex = -1;
-
-        let lastDeletedIncome = null;
-        let lastDeletedIncomeIndex = -1;
-
-        let lastDeletedCategory = null;
-        let lastDeletedCategoryIndex = -1;
-
-        let selectedIncomeTag = 'Job/Wages';
-        let allIncomeCategoriesCache = [];
-        let lastDeletedIncomeCategory = null;
-        let lastDeletedIncomeCategoryIndex = -1;
-
-        let lastDeletedSteadyIncome = null;
-
-        let editingPurchaseId = null;
-        
-        window.setSpendTab = function(tab) {
-            currentSpendTab = tab;
-            loadDailySpendCard();
+        const SPEND_TABS = {
+            daily: { title: 'Daily', limit: "Today's Limit", spent: 'Spent Today', empty: 'No purchases today.', warn: 15 },
+            weekly: { title: 'Weekly', limit: "Week's Limit", spent: 'Spent This Week', empty: 'No purchases this week.', warn: 105 },
+            monthly: { title: 'Monthly', limit: "Month's Limit", spent: 'Spent This Month', empty: 'No purchases this month.', warn: 450 }
         };
-
-        window.setRecentTab = function(tab) {
-            currentRecentTab = tab;
-            loadDailySpendCard();
-        };
-
-        const greeting = document.getElementById('greeting');
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        const signOutBtn = document.getElementById('signOutBtn');
-
-        function getGreetingWord() {
-            const hour = new Date().getHours();
-            if (hour < 12) return 'Good Morning';
-            if (hour < 18) return 'Good Afternoon';
-            return 'Good Evening';
-        }
-
-        async function loadUser() {
-            const response = await window.electronAPI.getCurrentUser();
-            let firstName = 'there';
-
-            if (response.success) {
-                const metadata = response.user.user_metadata || {};
-                firstName =
-                    metadata.first_name ||
-                    metadata.given_name ||
-                    (metadata.full_name ? metadata.full_name.split(' ')[0] : null) ||
-                    (metadata.name ? metadata.name.split(' ')[0] : null) ||
-                    'there';
-            }
-
-            greeting.innerText = `${getGreetingWord()}, ${firstName}`;
-        }
-        loadUser();
-
-        function daysBetween(start, end) {
-            if (!start || !end) return 0;
-            const startObj = new Date(start + 'T00:00:00');
-            const endObj = new Date(end + 'T00:00:00');
-            const diff = endObj - startObj;
-            return diff >= 0 ? Math.round(diff / (1000 * 60 * 60 * 24)) + 1 : 0;
-        }
-
-        function getLocalISO(d) {
-            const offset = d.getTimezoneOffset();
-            const local = new Date(d.getTime() - offset * 60 * 1000);
-            return local.toISOString().split('T')[0];
-        }
-
-        function todayISO() {
-            return getLocalISO(new Date());
-        }
-
-        function getWeekRange() {
-            const d = new Date();
-            const day = d.getDay();
-            const start = new Date(d);
-            start.setDate(d.getDate() - day);
-            const end = new Date(d);
-            end.setDate(d.getDate() + (6 - day));
-            return { start: getLocalISO(start), end: getLocalISO(end) };
-        }
-
-        function getMonthRange() {
-            const d = new Date();
-            const start = new Date(d.getFullYear(), d.getMonth(), 1);
-            const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-            return { start: getLocalISO(start), end: getLocalISO(end) };
-        }
-
-        function getWeightForDate(d, weightFactor) {
-            const day = d.getDay();
-            return (day === 0 || day === 5 || day === 6) ? weightFactor : 1;
-        }
-
-        function calculateWeightRange(startDateObj, endDateObj, weightFactor) {
-            let totalW = 0;
-            let d = new Date(startDateObj);
-            while (d <= endDateObj) {
-                totalW += getWeightForDate(d, weightFactor);
-                d.setDate(d.getDate() + 1);
-            }
-            return totalW;
-        }
-
-        async function loadPurchases() {
-            const response = await window.electronAPI.getUserData('purchases');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
-        }
-
-        async function savePurchases(purchases) {
-            await window.electronAPI.setUserData('purchases', purchases);
-            financialStatsCache = null;
-        }
-
-        async function loadIncome() {
-            const response = await window.electronAPI.getUserData('income');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
-        }
-
-        async function saveIncome(entries) {
-            await window.electronAPI.setUserData('income', entries);
-            financialStatsCache = null;
-        }
-
-        const FREQUENCY_DAYS = {
-            weekly: 7,
-            biweekly: 14,
-            monthly: 30
-        };
-
-        function addInterval(dateString, frequency) {
-            const days = FREQUENCY_DAYS[frequency] || 7;
-            const d = new Date(dateString + 'T00:00:00');
-            d.setDate(d.getDate() + days);
-            return getLocalISO(d);
-        }
-
-        async function loadSteadyIncome() {
-            const response = await window.electronAPI.getUserData('steady_income');
-            const value = (response.success && response.value) ? response.value : null;
-            return (value && value.payAmount && value.startDate) ? value : null;
-        }
-
-        async function saveSteadyIncome(data) {
-            await window.electronAPI.setUserData('steady_income', data);
-        }
-
-        let steadyIncomeProcessingChain = Promise.resolve();
-        function processSteadyIncomePaydays() {
-            const result = steadyIncomeProcessingChain.then(() => processSteadyIncomePaydaysInner());
-            steadyIncomeProcessingChain = result.catch(() => {});
-            return result;
-        }
-
-        async function processSteadyIncomePaydaysInner() {
-            const steady = await loadSteadyIncome();
-            if (!steady || !steady.payAmount || !steady.startDate) return { count: 0, total: 0 };
-
-            const today = todayISO();
-            let nextPayday = steady.nextPaydayDate || steady.startDate;
-            let changed = false;
-            let count = 0;
-            let total = 0;
-            const income = await loadIncome();
-
-            while (nextPayday && nextPayday <= today) {
-                income.push({
-                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    amount: steady.payAmount,
-                    description: steady.jobName || 'Steady Income',
-                    tag: 'Job/Wages',
-                    date: nextPayday
-                });
-                count += 1;
-                total += Number(steady.payAmount) || 0;
-                nextPayday = addInterval(nextPayday, steady.payFrequency);
-                changed = true;
-            }
-
-            if (changed) {
-                steady.nextPaydayDate = nextPayday;
-                await saveIncome(income);
-                await saveSteadyIncome(steady);
-            }
-
-            return { count, total, jobName: steady.jobName };
-        }
-
-        async function loadSubscriptions() {
-            const response = await window.electronAPI.getUserData('subscriptions');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
-        }
-
-        async function saveSubscriptions(subscriptions) {
-            await window.electronAPI.setUserData('subscriptions', subscriptions);
-        }
-
-        function addSubscriptionInterval(dateString, frequency) {
-            const d = new Date(dateString + 'T00:00:00');
-            const day = d.getDate();
-            if (frequency === 'yearly') {
-                d.setFullYear(d.getFullYear() + 1);
-            } else {
-                d.setMonth(d.getMonth() + 1, 1);
-                const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-                d.setDate(Math.min(day, daysInTargetMonth));
-            }
-            return getLocalISO(d);
-        }
-
-        let subscriptionProcessingChain = Promise.resolve();
-        function processSubscriptionPayments() {
-            const result = subscriptionProcessingChain.then(() => processSubscriptionPaymentsInner());
-            subscriptionProcessingChain = result.catch(() => {});
-            return result;
-        }
-
-        async function processSubscriptionPaymentsInner() {
-            const subscriptions = await loadSubscriptions();
-            if (!subscriptions.length) return { count: 0, total: 0, names: [] };
-
-            const today = todayISO();
-            const purchases = await loadPurchases();
-            let changed = false;
-            let count = 0;
-            let total = 0;
-            const names = [];
-
-            subscriptions.forEach(sub => {
-                if (!sub.amount || !sub.startDate) return;
-
-                let nextBilling = sub.nextBillingDate || sub.startDate;
-                let subCount = 0;
-
-                while (nextBilling && nextBilling <= today) {
-                    purchases.push({
-                        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                        amount: sub.amount,
-                        description: sub.name || 'Subscription',
-                        tag: 'Subscription',
-                        date: nextBilling,
-                        fromSurplus: true,
-                        isSubscriptionPayment: true,
-                        subscriptionId: sub.id
-                    });
-                    count += 1;
-                    subCount += 1;
-                    total += Number(sub.amount) || 0;
-                    nextBilling = addSubscriptionInterval(nextBilling, sub.frequency);
-                    changed = true;
-                }
-
-                if (subCount > 0) names.push(sub.name);
-                sub.nextBillingDate = nextBilling;
-            });
-
-            if (changed) {
-                await savePurchases(purchases);
-                await saveSubscriptions(subscriptions);
-            }
-
-            return { count, total, names };
-        }
-
-        const DEFAULT_CATEGORIES = [
-            { name: 'Food', color: '#f59e0b' },
-            { name: 'Transit', color: '#0ea5e9' },
-            { name: 'Educational', color: '#eab308' },
-            { name: 'Extracurriculars', color: '#ec4899' },
-            { name: 'Fun', color: '#a855f7' },
-            { name: 'Necessity', color: '#3b82f6' },
-            { name: 'Other', color: '#6b7280' }
-        ];
-        const DEBT_PAYMENT_COLOR = '#ef4444';
-        const GOAL_PURCHASE_COLOR = '#6366f1';
-        const SUBSCRIPTION_COLOR = '#14b8a6';
-
-        async function loadCustomCategories() {
-            const response = await window.electronAPI.getUserData('custom_categories');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
-        }
-
-        async function saveCustomCategories(categories) {
-            await window.electronAPI.setUserData('custom_categories', categories);
-        }
-
-        async function getAllCategories() {
-            const custom = await loadCustomCategories();
-            return [...DEFAULT_CATEGORIES, ...custom];
-        }
 
         const INCOME_DEFAULT_CATEGORIES = [
             { name: 'Job/Wages', color: '#4ade80' },
@@ -683,207 +286,203 @@
             { name: 'Other', color: '#6b7280' }
         ];
 
-        async function loadCustomIncomeCategories() {
-            const response = await window.electronAPI.getUserData('custom_income_categories');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
+        const FREQUENCY_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
+
+        const clampPercent = (v) => Math.max(0, Math.min(100, Number(v) || 0));
+
+        const stat = (value, label, color) => `
+            <div class="semester-stat">
+                <span class="semester-stat-value"${color ? ` style="color: ${color}"` : ''}>${value}</span>
+                <span class="semester-stat-label">${label}</span>
+            </div>
+        `;
+
+        const semesterHeader = (title, action = '') => `
+            <div class="semester-header">
+                <span class="semester-title">${title}</span>
+                ${action}
+            </div>
+        `;
+
+        const setupPrompt = (title, desc, button = `<button class="setup-prompt-btn" onclick="window.electronAPI.changePage('setup.html')">Get Started</button>`) => `
+            <div class="setup-prompt">
+                <div>
+                    <span class="setup-prompt-title">${title}</span>
+                    <span class="setup-prompt-desc">${desc}</span>
+                </div>
+                ${button}
+            </div>
+        `;
+
+        const recentTable = (headings, rows) => `
+            <div class="recent-table-wrapper">
+                <table class="recent-table">
+                    <thead>
+                        <tr>
+                            ${headings.map((h) => `<th>${h}</th>`).join('')}
+                            <th style="width: 30px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `;
+
+        function setSpendTab(tab) {
+            currentSpendTab = tab;
+            loadDailySpendCard();
         }
 
-        async function saveCustomIncomeCategories(categories) {
-            await window.electronAPI.setUserData('custom_income_categories', categories);
+        function setRecentTab(tab) {
+            currentRecentTab = tab;
+            loadDailySpendCard();
         }
 
-        async function getAllIncomeCategories() {
-            const custom = await loadCustomIncomeCategories();
-            return [...INCOME_DEFAULT_CATEGORIES, ...custom];
+        function refreshAll() {
+            loadSemesterSummary();
+            loadDailySpendCard();
+            loadGoalCard();
         }
 
-        let financialStatsCache = null;
+        function getGreetingWord() {
+            const hour = new Date().getHours();
+            if (hour < 12) return 'Good Morning';
+            if (hour < 18) return 'Good Afternoon';
+            return 'Good Evening';
+        }
 
-        async function getFinancialStats(forceRefresh = false) {
-            if (!forceRefresh && financialStatsCache) {
-                return financialStatsCache;
-            }
+        async function loadUser() {
+            const response = await window.electronAPI.getCurrentUser();
+            const meta = (response.success && response.user.user_metadata) || {};
+            const firstName = meta.first_name || meta.given_name || meta.full_name?.split(' ')[0] || meta.name?.split(' ')[0] || 'there';
+            $('greeting').innerText = `${getGreetingWord()}, ${firstName}`;
+        }
+        loadUser();
 
-            const setupResponse = await window.electronAPI.getUserData('financial_setup');
-            if (!setupResponse.success || !setupResponse.value) {
-                financialStatsCache = null;
-                return null;
-            }
+        function getWeekRange() {
+            const d = new Date();
+            const start = new Date(d);
+            start.setDate(d.getDate() - d.getDay());
+            const end = new Date(d);
+            end.setDate(d.getDate() + (6 - d.getDay()));
+            return { start: getLocalISO(start), end: getLocalISO(end) };
+        }
 
-            const data = setupResponse.value;
-            const purchases = await loadPurchases();
-            const incomeEntries = await loadIncome();
-            const todayStr = todayISO();
-            const isBeforeStart = todayStr < data.startDate;
-            const isAfterEnd = todayStr > data.endDate;
-            const isBreak = isBeforeStart || isAfterEnd;
-
-            const days = daysBetween(data.startDate, data.endDate);
-            const weeks = days / 7;
-            const months = days / 30.44;
-
-            const end = new Date(data.endDate + 'T00:00:00');
-            const now = new Date(todayStr + 'T00:00:00');
-            const start = new Date(data.startDate + 'T00:00:00');
-            const effectiveStart = now > start ? now : start;
-
-            const daysRemaining = Math.max(0, Math.round((end - effectiveStart) / (1000 * 60 * 60 * 24)) + 1);
-
-            const totalIncomeLogged = incomeEntries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-            const totalIn = (data.checkingSavings || 0) + (data.financialAidRefund || 0) + (data.parentContribution || 0) + totalIncomeLogged;
-            const totalOut = ((data.rentUtilities || 0) * months) + (data.oneTimeExpenses || 0);
-            const netRemaining = totalIn - totalOut;
-
-            const isSurplusFunded = (p) => p.isGoal || p.fromSurplus;
-
-            const allSemesterPurchases = purchases.filter(p => p.date >= data.startDate && p.date <= data.endDate);
-            const semesterPurchases = allSemesterPurchases.filter(p => !isSurplusFunded(p));
-
-            const totalSpent = semesterPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
-            const totalPendingReimbursements = allSemesterPurchases.reduce((sum, p) => sum + (!p.reimbursementSettled ? (Number(p.reimbursement) || 0) : 0), 0);
-
-            const previousPurchases = semesterPurchases.filter(p => p.date < todayStr);
-            const totalSpentBeforeToday = previousPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
-
-            const surplusFundedPurchases = allSemesterPurchases.filter(isSurplusFunded);
-            const totalSpentOnGoals = surplusFundedPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
-
-            const currentNetRunway = netRemaining - totalSpent - totalSpentOnGoals;
-            const runwayRemainingPercent = netRemaining > 0 ? Math.max(0, (currentNetRunway / netRemaining) * 100) : 0;
-
-            const weightFactor = data.weekendWeight || 1;
-            const fullSemesterWeightTotal = calculateWeightRange(start, end, weightFactor);
-            const baseSpendUnit = fullSemesterWeightTotal > 0 ? (netRemaining / fullSemesterWeightTotal) : 0;
-            
-            const roundedWeekday = Math.round(baseSpendUnit);
-            const roundedWeekend = Math.round(baseSpendUnit * weightFactor);
-            
-            const todayDay = now.getDay();
-            const dailySafeSpend = data.noFixedBudget ? null : (todayDay === 0 || todayDay === 5 || todayDay === 6) ? roundedWeekend : roundedWeekday;
-
-            let expectedSpendToDate = 0;
-            let d = new Date(start);
-            while (d < effectiveStart) {
-                const day = d.getDay();
-                expectedSpendToDate += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
-                d.setDate(d.getDate() + 1);
-            }
-            
-            const surplusDeficit = (expectedSpendToDate - totalSpentBeforeToday) - totalSpentOnGoals;
-            const isSurplus = surplusDeficit >= 0;
-
-            financialStatsCache = {
-                data, purchases, todayStr, isBeforeStart, isAfterEnd, isBreak,
-                days, weeks, months, totalIn, totalOut, netRemaining, totalSpent,
-                daysRemaining, dailySafeSpend, currentNetRunway, runwayRemainingPercent,
-                surplusDeficit, isSurplus, totalPendingReimbursements, roundedWeekday, roundedWeekend, weightFactor,
-                incomeEntries, totalIncomeLogged
+        function getMonthRange() {
+            const d = new Date();
+            return {
+                start: getLocalISO(new Date(d.getFullYear(), d.getMonth(), 1)),
+                end: getLocalISO(new Date(d.getFullYear(), d.getMonth() + 1, 0))
             };
-            return financialStatsCache;
         }
 
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.innerText = str == null ? '' : str;
-            return div.innerHTML;
+        function sumLimit(range, dayLimit) {
+            const end = new Date(range.end + 'T00:00:00');
+            let total = 0;
+            for (const d = new Date(range.start + 'T00:00:00'); d <= end; d.setDate(d.getDate() + 1)) {
+                total += dayLimit(d);
+            }
+            return total;
         }
 
-        function formatCurrency(amount) {
-            return getCurrencySymbol() + (Number(amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        async function loadSteadyIncome() {
+            const response = await window.electronAPI.getUserData('steady_income');
+            const value = response.success ? response.value : null;
+            return value?.payAmount && value?.startDate ? value : null;
+        }
+
+        const saveSteadyIncome = (data) => saveList('steady_income', data);
+
+        function addInterval(dateString, frequency) {
+            const d = new Date(dateString + 'T00:00:00');
+            d.setDate(d.getDate() + (FREQUENCY_DAYS[frequency] || 7));
+            return getLocalISO(d);
+        }
+
+        let steadyIncomeQueue = Promise.resolve();
+        function processSteadyIncomePaydays() {
+            const result = steadyIncomeQueue.then(runSteadyIncomePaydays);
+            steadyIncomeQueue = result.catch(() => {});
+            return result;
+        }
+
+        async function runSteadyIncomePaydays() {
+            const steady = await loadSteadyIncome();
+            if (!steady) return { count: 0, total: 0 };
+
+            const today = todayISO();
+            const income = await loadIncome();
+            let nextPayday = steady.nextPaydayDate || steady.startDate;
+            let count = 0;
+
+            while (nextPayday <= today) {
+                income.push({
+                    id: newId(),
+                    amount: steady.payAmount,
+                    description: steady.jobName || 'Steady Income',
+                    tag: 'Job/Wages',
+                    date: nextPayday
+                });
+                count += 1;
+                nextPayday = addInterval(nextPayday, steady.payFrequency);
+            }
+
+            if (count) {
+                steady.nextPaydayDate = nextPayday;
+                await saveIncome(income);
+                await saveSteadyIncome(steady);
+            }
+
+            return { count, total: count * (Number(steady.payAmount) || 0), jobName: steady.jobName };
         }
 
         async function loadSemesterSummary() {
-            const container = document.getElementById('semesterCard');
+            const container = $('semesterCard');
             const stats = await getFinancialStats();
 
             if (!stats) {
-                container.innerHTML = `
-                    <div class="setup-prompt">
-                        <div>
-                            <span class="setup-prompt-title">Set up your semester</span>
-                            <span class="setup-prompt-desc">Tell us your timeline and budget to see your daily safe spend.</span>
-                        </div>
-                        <button class="setup-prompt-btn" onclick="window.electronAPI.changePage('setup.html')">Get Started</button>
-                    </div>
-                `;
+                container.innerHTML = setupPrompt('Set up your semester', 'Tell us your timeline and budget to see your daily safe spend.');
                 return;
             }
 
-            const { dailySafeSpend, daysRemaining, netRemaining, currentNetRunway, runwayRemainingPercent, surplusDeficit, isSurplus, totalPendingReimbursements, data } = stats;
+            const { data, todayStr, dailySafeSpend, daysRemaining, netRemaining, currentNetRunway, runwayRemainingPercent, surplusDeficit, isSurplus, totalPendingReimbursements } = stats;
+            const noBudget = data.noFixedBudget;
+            const editBtn = `<button class="semester-edit-btn" onclick="window.electronAPI.changePage('setup.html')">Edit</button>`;
+            const pendingStat = (amount) => stat(formatWhole(amount), 'Pending Money', '#6366f1');
 
             if (stats.isBreak) {
-                let breakStatValue = "N/A";
-                let breakStatLabel = "Break";
-
-                if (stats.isBeforeStart) {
-                    breakStatValue = daysBetween(stats.todayStr, stats.data.startDate);
-                    breakStatLabel = "Days Until Start";
-                } else {
-                    breakStatLabel = "Semester Ended";
-                }
-
-                const breakPurchases = stats.purchases.filter(p => p.date < stats.data.startDate || p.date > stats.data.endDate);
-                const breakPending = breakPurchases.reduce((sum, p) => sum + (!p.reimbursementSettled ? (Number(p.reimbursement) || 0) : 0), 0);
+                const [breakValue, breakLabel] = stats.isBeforeStart
+                    ? [daysBetween(todayStr, data.startDate), 'Days Until Start']
+                    : ['N/A', 'Semester Ended'];
+                const breakPending = stats.purchases
+                    .filter((p) => p.date < data.startDate || p.date > data.endDate)
+                    .reduce((sum, p) => sum + pendingReimbursement(p), 0);
 
                 container.innerHTML = `
-                    <div class="semester-header">
-                        <span class="semester-title">Your Semester</span>
-                        <button class="semester-edit-btn" onclick="window.electronAPI.changePage('setup.html')">Edit</button>
-                    </div>
+                    ${semesterHeader('Your Semester', editBtn)}
                     <div class="semester-stats">
-                        <div class="semester-stat">
-                            <span class="semester-stat-value" style="color: #a1a1aa;">N/A</span>
-                            <span class="semester-stat-label">Today's Limit</span>
-                        </div>
-                        <div class="semester-stat">
-                            <span class="semester-stat-value">${breakStatValue}</span>
-                            <span class="semester-stat-label">${breakStatLabel}</span>
-                        </div>
-                        <div class="semester-stat">
-                            <span class="semester-stat-value" style="color: #6366f1;">${getCurrencySymbol()}${Math.round(breakPending).toLocaleString()}</span>
-                            <span class="semester-stat-label">Pending Money</span>
-                        </div>
+                        ${stat('N/A', "Today's Limit", '#a1a1aa')}
+                        ${stat(breakValue, breakLabel)}
+                        ${pendingStat(breakPending)}
                     </div>
                 `;
                 return;
             }
 
+            const limitColor = noBudget ? '#a1a1aa' : dailySafeSpend < 0 ? '#f87171' : dailySafeSpend < 15 ? '#f59e0b' : '#4ade80';
+            const surplusColor = noBudget ? '#a1a1aa' : isSurplus ? '#4ade80' : '#f87171';
+
             container.innerHTML = `
-                <div class="semester-header">
-                    <span class="semester-title">Your Semester</span>
-                    <button class="semester-edit-btn" onclick="window.electronAPI.changePage('setup.html')">Edit</button>
-                </div>
+                ${semesterHeader('Your Semester', editBtn)}
                 <div class="semester-stats">
-                    <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${data.noFixedBudget ? '#a1a1aa' : (dailySafeSpend < 0 ? '#f87171' : dailySafeSpend < 15 ? '#f59e0b' : '#4ade80')}">
-                            ${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + dailySafeSpend.toLocaleString()}
-                        </span>
-                        <span class="semester-stat-label">Today's Limit</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value">${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + Math.round(netRemaining).toLocaleString()}</span>
-                        <span class="semester-stat-label">Total Runway</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value">${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + Math.round(currentNetRunway).toLocaleString()}</span>
-                        <span class="semester-stat-label">Net Runway</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value">${daysRemaining}</span>
-                        <span class="semester-stat-label">Days Left</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${data.noFixedBudget ? '#a1a1aa' : (isSurplus ? '#4ade80' : '#f87171')}">
-                            ${data.noFixedBudget ? 'N/A' : getCurrencySymbol() + Math.round(Math.abs(surplusDeficit)).toLocaleString()}
-                        </span>
-                        <span class="semester-stat-label">${data.noFixedBudget ? 'Surplus' : (isSurplus ? 'Surplus' : 'Deficit')}</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: #6366f1;">${getCurrencySymbol()}${Math.round(totalPendingReimbursements).toLocaleString()}</span>
-                        <span class="semester-stat-label">Pending Money</span>
-                    </div>
+                    ${stat(noBudget ? 'N/A' : formatWhole(dailySafeSpend), "Today's Limit", limitColor)}
+                    ${stat(noBudget ? 'N/A' : formatWhole(netRemaining), 'Total Runway')}
+                    ${stat(noBudget ? 'N/A' : formatWhole(currentNetRunway), 'Net Runway')}
+                    ${stat(daysRemaining, 'Days Left')}
+                    ${stat(noBudget ? 'N/A' : formatWhole(Math.abs(surplusDeficit)), noBudget || isSurplus ? 'Surplus' : 'Deficit', surplusColor)}
+                    ${pendingStat(totalPendingReimbursements)}
                 </div>
-                ${data.noFixedBudget ? '' : `
+                ${noBudget ? '' : `
                 <div class="semester-bar-track">
                     <div class="semester-bar-fill" style="width: ${runwayRemainingPercent}%;"></div>
                 </div>
@@ -891,312 +490,131 @@
             `;
         }
 
-        async function loadDailySpendCard(forceRefresh = false) {
-            const container = document.getElementById('dailySpendCard');
-            const stats = await getFinancialStats(forceRefresh);
+        async function loadDailySpendCard() {
+            const container = $('dailySpendCard');
+            const stats = await getFinancialStats();
 
             if (!stats) {
-                container.innerHTML = `
-                    <div class="setup-prompt">
-                        <div>
-                            <span class="setup-prompt-title">Safe Spend Dashboard</span>
-                            <span class="setup-prompt-desc">Complete your financial setup to start tracking your spending.</span>
-                        </div>
-                        <button class="setup-prompt-btn" onclick="window.electronAPI.changePage('setup.html')">Get Started</button>
-                    </div>
-                `;
+                container.innerHTML = setupPrompt('Safe Spend Dashboard', 'Complete your financial setup to start tracking your spending.');
                 return;
             }
 
-            const { data, purchases, todayStr, isBreak, dailySafeSpend, roundedWeekday, roundedWeekend, weightFactor } = stats;
-            const weekRange = getWeekRange();
-            const monthRange = getMonthRange();
+            const { data, purchases, incomeEntries, todayStr, isBreak, dayLimit, weightFactor } = stats;
+            const noBudget = data.noFixedBudget;
+            const untracked = isBreak || noBudget;
+            const tab = SPEND_TABS[currentSpendTab];
+            const range = currentSpendTab === 'daily' ? { start: todayStr, end: todayStr }
+                : currentSpendTab === 'weekly' ? getWeekRange()
+                : getMonthRange();
 
-            let totalSpent = 0;
-            if (isBreak) {
-                const breakPurchases = purchases.filter(p => (p.date < data.startDate || p.date > data.endDate) && !p.isGoal && !p.fromSurplus);
-                totalSpent = breakPurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
-            } else {
-                totalSpent = stats.totalSpent;
-            }
+            const totalSpent = isBreak
+                ? sumNet(purchases.filter((p) => (p.date < data.startDate || p.date > data.endDate) && !isSurplusFunded(p)))
+                : stats.totalSpent;
 
-            let timeframePurchases = [];
-            let displayPurchases = [];
-            let timeframeLimit = 0;
-            let limitLabel = '';
-            let spentLabel = '';
-            let tabTitle = '';
-            let emptyText = '';
+            const displayPurchases = purchases.filter((p) => p.date >= range.start && p.date <= range.end);
+            const timeframePurchases = displayPurchases.filter((p) => !isSurplusFunded(p)).sort((a, b) => a.tag.localeCompare(b.tag));
+            const timeframeLimit = noBudget ? null : sumLimit(range, dayLimit);
+            const timeframeSpent = sumNet(timeframePurchases);
+            const isOver = !untracked && timeframeSpent > timeframeLimit;
 
-            if (currentSpendTab === 'daily') {
-                displayPurchases = purchases.filter(p => p.date === todayStr);
-                timeframePurchases = displayPurchases.filter(p => !p.fromSurplus && !p.isGoal);
-                timeframeLimit = data.noFixedBudget ? null : dailySafeSpend;
-                limitLabel = "Today's Limit";
-                spentLabel = "Spent Today";
-                tabTitle = data.noFixedBudget ? 'Daily Spend' : 'Daily Safe Spend';
-                emptyText = 'No purchases today.';
-            } else if (currentSpendTab === 'weekly') {
-                displayPurchases = purchases.filter(p => p.date >= weekRange.start && p.date <= weekRange.end);
-                timeframePurchases = displayPurchases.filter(p => !p.fromSurplus && !p.isGoal);
-                const wStart = new Date(weekRange.start + 'T00:00:00');
-                const wEnd = new Date(weekRange.end + 'T00:00:00');
-                let limit = 0;
-                let cd = new Date(wStart);
-                while(cd <= wEnd) {
-                    const day = cd.getDay();
-                    limit += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
-                    cd.setDate(cd.getDate() + 1);
-                }
-                timeframeLimit = data.noFixedBudget ? null : limit;
-                limitLabel = "Week's Limit";
-                spentLabel = "Spent This Week";
-                tabTitle = data.noFixedBudget ? 'Weekly Spend' : 'Weekly Safe Spend';
-                emptyText = 'No purchases this week.';
-            } else if (currentSpendTab === 'monthly') {
-                displayPurchases = purchases.filter(p => p.date >= monthRange.start && p.date <= monthRange.end);
-                timeframePurchases = displayPurchases.filter(p => !p.fromSurplus && !p.isGoal);
-                const mStart = new Date(monthRange.start + 'T00:00:00');
-                const mEnd = new Date(monthRange.end + 'T00:00:00');
-                let limit = 0;
-                let cd = new Date(mStart);
-                while(cd <= mEnd) {
-                    const day = cd.getDay();
-                    limit += (day === 0 || day === 5 || day === 6) ? roundedWeekend : roundedWeekday;
-                    cd.setDate(cd.getDate() + 1);
-                }
-                timeframeLimit = data.noFixedBudget ? null : limit;
-                limitLabel = "Month's Limit";
-                spentLabel = "Spent This Month";
-                tabTitle = data.noFixedBudget ? 'Monthly Spend' : 'Monthly Safe Spend';
-                emptyText = 'No purchases this month.';
-            }
-
-            const listPurchases = [...displayPurchases].reverse();
-            timeframePurchases.sort((a, b) => a.tag.localeCompare(b.tag));
-
-            const timeframeSpent = timeframePurchases.reduce((sum, p) => sum + ((Number(p.amount) || 0) - (Number(p.reimbursement) || 0)), 0);
-            const isOver = isBreak || data.noFixedBudget ? false : (timeframeSpent > timeframeLimit);
-
-            let dailyBarWidth = '0%';
-            let dailyBarBackground = '';
-
-            if (isBreak || data.noFixedBudget) {
-                dailyBarWidth = timeframeSpent > 0 ? '100%' : '0%';
-                dailyBarBackground = 'linear-gradient(90deg, #4ade80, #16a34a)';
+            let barWidth;
+            let barBackground = 'linear-gradient(90deg, #4ade80, #16a34a)';
+            if (untracked) {
+                barWidth = timeframeSpent > 0 ? '100%' : '0%';
             } else if (isOver) {
-                dailyBarWidth = '100%';
                 const safePercent = Math.max(0, (timeframeLimit / timeframeSpent) * 100);
-                dailyBarBackground = `linear-gradient(90deg, #4ade80 0%, #16a34a ${safePercent}%, #f87171 ${safePercent}%, #b91c1c 100%)`;
+                barWidth = '100%';
+                barBackground = `linear-gradient(90deg, #4ade80 0%, #16a34a ${safePercent}%, #f87171 ${safePercent}%, #b91c1c 100%)`;
             } else {
-                const usedPercent = timeframeLimit > 0 ? (timeframeSpent / timeframeLimit) * 100 : 0;
-                dailyBarWidth = `${usedPercent}%`;
-                dailyBarBackground = 'linear-gradient(90deg, #4ade80, #16a34a)';
+                barWidth = `${timeframeLimit > 0 ? (timeframeSpent / timeframeLimit) * 100 : 0}%`;
             }
 
-            const allCategories = await getAllCategories();
-            const categoryColors = {};
-            allCategories.forEach(c => { categoryColors[c.name] = c.color; });
-            categoryColors['Debt Payment'] = DEBT_PAYMENT_COLOR;
-            categoryColors['Goal Purchase'] = GOAL_PURCHASE_COLOR;
-            categoryColors['Subscription'] = SUBSCRIPTION_COLOR;
+            const [colorFor, incomeColorFor] = await Promise.all([
+                getPurchaseColors(),
+                getColorLookup(INCOME_DEFAULT_CATEGORIES, 'custom_income_categories')
+            ]);
 
-            const usedTags = [...new Set(timeframePurchases.map(p => p.tag))].sort((a, b) => a.localeCompare(b));
+            const purchaseRows = [...displayPurchases].reverse().map((p) => {
+                const net = netAmount(p);
+                const costDisplay = !p.reimbursement ? formatCurrency(p.amount)
+                    : p.reimbursementSettled ? formatCurrency(net)
+                    : `${formatCurrency(net)} <span style="font-size: 11px; color: #a1a1aa; display: block; margin-top: 4px; align-items: center;"><input type="checkbox" class="settle-reimbursement-chk" data-id="${p.id}" style="margin-right: 5px; cursor: pointer; vertical-align: middle;" title="Mark as received">(${formatCurrency(p.reimbursement)} pending)</span>`;
 
-            let legendHTML = '';
-            for (const tag of usedTags) {
-                const color = categoryColors[tag] || '#6b7280';
-                legendHTML += `
-                    <div class="legend-item">
-                        <div class="legend-color" style="background-color: ${color}"></div>
-                        <span>${escapeHtml(tag)}</span>
-                    </div>
+                return `
+                    <tr>
+                        <td style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}${isSurplusFunded(p) ? ' <span class="surplus-badge">Surplus</span>' : ''}</td>
+                        <td>${costDisplay}</td>
+                        <td>
+                            <div class="recent-tag-badge">
+                                <div class="legend-color" style="background-color: ${colorFor(p.tag)}; width: 10px; height: 10px;"></div>
+                                ${escapeHtml(p.tag)}
+                            </div>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="row-actions">
+                                <button class="edit-purchase-btn" data-id="${p.id}" aria-label="Edit purchase">✎</button>
+                                <button class="delete-purchase-btn" data-id="${p.id}" aria-label="Delete purchase">✕</button>
+                            </div>
+                        </td>
+                    </tr>
                 `;
-            }
+            }).join('');
 
-            let recentHTML = '';
-            if (listPurchases.length === 0) {
-                recentHTML = `<div class="empty-recent">${emptyText}</div>`;
-            } else {
-                let rows = '';
-                listPurchases.forEach(p => {
-                    const color = categoryColors[p.tag] || '#6b7280';
-                    const netAmt = (Number(p.amount) || 0) - (Number(p.reimbursement) || 0);
-                    const costDisplay = p.reimbursement 
-                        ? (!p.reimbursementSettled 
-                            ? `${formatCurrency(netAmt)} <span style="font-size: 11px; color: #a1a1aa; display: block; margin-top: 4px; align-items: center;"><input type="checkbox" class="settle-reimbursement-chk" data-id="${p.id}" style="margin-right: 5px; cursor: pointer; vertical-align: middle;" title="Mark as received">(${formatCurrency(p.reimbursement)} pending)</span>` 
-                            : formatCurrency(netAmt))
-                        : formatCurrency(p.amount);
+            const incomeRows = [...incomeEntries].reverse().map((entry) => `
+                <tr>
+                    <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(entry.description)}">${escapeHtml(entry.description)}</td>
+                    <td>
+                        <div class="recent-tag-badge">
+                            <div class="legend-color" style="background-color: ${incomeColorFor(entry.tag)}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></div>
+                            ${escapeHtml(entry.tag || 'Other')}
+                        </div>
+                    </td>
+                    <td style="color: #4ade80;">+${formatCurrency(entry.amount)}</td>
+                    <td style="text-align: right;">
+                        <div class="row-actions">
+                            <button class="edit-income-btn" data-id="${entry.id}" aria-label="Edit income entry">✎</button>
+                            <button class="delete-income-btn" data-id="${entry.id}" aria-label="Delete income entry">✕</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
 
-                    rows += `
-                        <tr>
-                            <td style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.description}">${p.description}${(p.fromSurplus || p.isGoal) ? ' <span class="surplus-badge">Surplus</span>' : ''}</td>
-                            <td>${costDisplay}</td>
-                            <td>
-                                <div class="recent-tag-badge">
-                                    <div class="legend-color" style="background-color: ${color}; width: 10px; height: 10px;"></div>
-                                    ${p.tag}
-                                </div>
-                            </td>
-                            <td style="text-align: right;">
-                                <div class="row-actions">
-                                    <button class="edit-purchase-btn" data-id="${p.id}" aria-label="Edit purchase">✎</button>
-                                    <button class="delete-purchase-btn" data-id="${p.id}" aria-label="Delete purchase">✕</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                });
-                recentHTML = `
-                    <div class="recent-table-wrapper">
-                        <table class="recent-table">
-                            <thead>
-                                <tr>
-                                    <th>Description</th>
-                                    <th>Cost</th>
-                                    <th>Category</th>
-                                    <th style="width: 30px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rows}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
+            const recentHTML = currentRecentTab === 'income'
+                ? (incomeEntries.length ? recentTable(['Description', 'Source', 'Amount'], incomeRows) : `<div class="empty-recent">No income logged yet.</div>`)
+                : (displayPurchases.length ? recentTable(['Description', 'Cost', 'Category'], purchaseRows) : `<div class="empty-recent">${tab.empty}</div>`);
 
-            let recentIncomeHTML = '';
-            if (!stats.incomeEntries || stats.incomeEntries.length === 0) {
-                recentIncomeHTML = `<div class="empty-recent">No income logged yet.</div>`;
-            } else {
-                const allIncomeCategories = await getAllIncomeCategories();
-                const incomeCategoryColors = {};
-                allIncomeCategories.forEach(c => { incomeCategoryColors[c.name] = c.color; });
+            const pieTotal = Math.max(timeframeLimit || 0, timeframeSpent) || 1;
+            const pieChartHTML = timeframePurchases.length === 0
+                ? `<div class="empty-pie">${tab.empty}</div>`
+                : pieSvg(timeframePurchases.map((p) => ({ amount: netAmount(p), color: colorFor(p.tag), desc: p.description, tag: p.tag })), pieTotal, '#1a1a1e');
 
-                let incomeRows = '';
-                [...stats.incomeEntries].reverse().forEach(entry => {
-                    const color = incomeCategoryColors[entry.tag] || '#6b7280';
-                    incomeRows += `
-                        <tr>
-                            <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(entry.description)}">${escapeHtml(entry.description)}</td>
-                            <td>
-                                <div class="recent-tag-badge">
-                                    <div class="legend-color" style="background-color: ${color}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></div>
-                                    ${escapeHtml(entry.tag || 'Other')}
-                                </div>
-                            </td>
-                            <td style="color: #4ade80;">+${formatCurrency(entry.amount)}</td>
-                            <td style="text-align: right;">
-                                <div class="row-actions">
-                                    <button class="edit-income-btn" data-id="${entry.id}" aria-label="Edit income entry">✎</button>
-                                    <button class="delete-income-btn" data-id="${entry.id}" aria-label="Delete income entry">✕</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                });
-                recentIncomeHTML = `
-                    <div class="recent-table-wrapper">
-                        <table class="recent-table">
-                            <thead>
-                                <tr>
-                                    <th>Description</th>
-                                    <th>Source</th>
-                                    <th>Amount</th>
-                                    <th style="width: 30px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${incomeRows}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
-
-            let pieChartHTML = '';
-            
-            if (timeframePurchases.length === 0) {
-                pieChartHTML = `<div class="empty-pie">${emptyText}</div>`;
-            } else {
-                let cumulativePercent = 0;
-                let svgPaths = '';
-                
-                const pieTotal = Math.max(Number(timeframeLimit) || 0, timeframeSpent) > 0 ? Math.max(Number(timeframeLimit) || 0, timeframeSpent) : 1;
-                
-                svgPaths += `<circle r="1" cx="0" cy="0" fill="#26262b"></circle>`;
-
-                timeframePurchases.forEach(p => {
-                    const netAmt = (Number(p.amount) || 0) - (Number(p.reimbursement) || 0);
-                    const slicePercent = netAmt / pieTotal;
-                    if (slicePercent <= 0) return;
-
-                    if (slicePercent >= 1) {
-                        const color = categoryColors[p.tag] || '#6b7280';
-                        svgPaths += `
-                            <circle r="1" cx="0" cy="0" fill="${color}" class="pie-slice" data-desc="${p.description}" data-amount="${netAmt.toFixed(2)}" data-tag="${p.tag}"></circle>`;
-                        return;
-                    }
-
-                    const startX = Math.cos(2 * Math.PI * cumulativePercent);
-                    const startY = Math.sin(2 * Math.PI * cumulativePercent);
-                    
-                    cumulativePercent += slicePercent;
-
-                    const endX = Math.cos(2 * Math.PI * cumulativePercent);
-                    const endY = Math.sin(2 * Math.PI * cumulativePercent);
-                    
-                    const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
-                    const pathData = `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
-                    const color = categoryColors[p.tag] || '#6b7280';
-                    
-                    svgPaths += `
-                        <path d="${pathData}" fill="${color}" stroke="#1a1a1e" stroke-width="0.015" class="pie-slice" data-desc="${p.description}" data-amount="${netAmt.toFixed(2)}" data-tag="${p.tag}"></path>`;
-                });
-                
-                pieChartHTML = `
-                    <svg viewBox="-1 -1 2 2" class="daily-pie-chart">
-                        ${svgPaths}
-                    </svg>
-                `;
-            }
+            const limitColor = untracked ? '#a1a1aa' : timeframeLimit < 0 ? '#f87171' : timeframeLimit < tab.warn ? '#f59e0b' : '#4ade80';
+            const boostBadge = !noBudget && currentSpendTab === 'daily' && weightFactor > 1 && isBoostDay(new Date())
+                ? '<span class="boost-badge">WEEKEND BOOST</span>'
+                : '';
 
             container.innerHTML = `
                 <div class="semester-header" style="margin-bottom: 12px;">
-                    <span class="semester-title">${tabTitle}</span>
+                    <span class="semester-title">${tab.title} ${noBudget ? 'Spend' : 'Safe Spend'}</span>
                     <div class="header-actions">
-			<button class="afford-check-btn" id="affordCheckBtn" ${data.noFixedBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Can I Afford This?</button>
+                        <button class="afford-check-btn" id="affordCheckBtn" ${noBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Can I Afford This?</button>
                         <button class="log-purchase-btn log-income-btn" id="logIncomeBtn">+ Log Income</button>
                         <button class="log-purchase-btn" id="logPurchaseBtn">+ Log Purchase</button>
                     </div>
                 </div>
-                
+
                 <div class="tabs-container">
-                    <button class="tab-btn ${currentSpendTab === 'daily' ? 'active' : ''}" onclick="window.setSpendTab('daily')">Daily</button>
-                    <button class="tab-btn ${currentSpendTab === 'weekly' ? 'active' : ''}" onclick="window.setSpendTab('weekly')">Weekly</button>
-                    <button class="tab-btn ${currentSpendTab === 'monthly' ? 'active' : ''}" onclick="window.setSpendTab('monthly')">Monthly</button>
+                    ${Object.entries(SPEND_TABS).map(([key, t]) => `<button class="tab-btn ${currentSpendTab === key ? 'active' : ''}" onclick="setSpendTab('${key}')">${t.title}</button>`).join('')}
                 </div>
 
                 <div class="semester-stats pie-adjusted">
-                    <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${(isBreak || data.noFixedBudget) ? '#a1a1aa' : (timeframeLimit < 0 ? '#f87171' : timeframeLimit < (currentSpendTab === 'daily' ? 15 : currentSpendTab === 'weekly' ? 105 : 450) ? '#f59e0b' : '#4ade80')}">
-                            ${(isBreak || data.noFixedBudget) ? 'N/A' : getCurrencySymbol() + Math.round(timeframeLimit).toLocaleString()}
-                        </span>
-                        <span class="semester-stat-label">${limitLabel} ${(!data.noFixedBudget && weightFactor > 1 && currentSpendTab === 'daily' && getWeightForDate(new Date(), weightFactor) > 1) ? '<span class="boost-badge">WEEKEND BOOST</span>' : ''}</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value" style="color: ${isOver ? '#f87171' : '#ffffff'}">${getCurrencySymbol()}${timeframeSpent.toFixed(2)}</span>
-                        <span class="semester-stat-label">${spentLabel}</span>
-                    </div>
-                    <div class="semester-stat">
-                        <span class="semester-stat-value">${getCurrencySymbol()}${totalSpent.toFixed(2)}</span>
-                        <span class="semester-stat-label">${isBreak ? 'Spent This Break' : 'Spent This Semester'}</span>
-                    </div>
+                    ${stat(untracked ? 'N/A' : formatWhole(timeframeLimit), `${tab.limit} ${boostBadge}`, limitColor)}
+                    ${stat(`${getCurrencySymbol()}${timeframeSpent.toFixed(2)}`, tab.spent, isOver ? '#f87171' : '#ffffff')}
+                    ${stat(`${getCurrencySymbol()}${totalSpent.toFixed(2)}`, isBreak ? 'Spent This Break' : 'Spent This Semester')}
                 </div>
 
                 <div class="daily-bar-track" style="margin-bottom: 32px;">
-                    <div class="daily-bar-fill" style="width: ${dailyBarWidth}; background: ${dailyBarBackground};"></div>
+                    <div class="daily-bar-fill" style="width: ${barWidth}; background: ${barBackground};"></div>
                 </div>
 
                 <div class="daily-content-wrapper">
@@ -1206,264 +624,135 @@
 
                     <div class="daily-info-container">
                         <div class="pie-legend">
-                            ${legendHTML}
+                            ${legendHtml([...new Set(timeframePurchases.map((p) => p.tag))], colorFor)}
                         </div>
 
                         <div class="recent-purchases-container">
                             <div class="recent-purchases-header">
                                 <div class="recent-purchases-title">Recent Activity</div>
                                 <div class="recent-subtabs">
-                                    <button class="subtab-btn ${currentRecentTab === 'purchases' ? 'active' : ''}" onclick="window.setRecentTab('purchases')">Purchases</button>
-                                    <button class="subtab-btn ${currentRecentTab === 'income' ? 'active' : ''}" onclick="window.setRecentTab('income')">Income</button>
+                                    <button class="subtab-btn ${currentRecentTab === 'purchases' ? 'active' : ''}" onclick="setRecentTab('purchases')">Purchases</button>
+                                    <button class="subtab-btn ${currentRecentTab === 'income' ? 'active' : ''}" onclick="setRecentTab('income')">Income</button>
                                 </div>
                             </div>
-                            ${currentRecentTab === 'income' ? recentIncomeHTML : recentHTML}
+                            ${recentHTML}
                         </div>
                     </div>
                 </div>
             `;
-
-            document.getElementById('logPurchaseBtn').addEventListener('click', () => openPurchaseModal());
-            document.getElementById('logIncomeBtn').addEventListener('click', () => openIncomeModal());
-            document.getElementById('affordCheckBtn').addEventListener('click', openAffordModal);
-
-            document.querySelectorAll('.edit-purchase-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const pid = e.currentTarget.getAttribute('data-id');
-                    const purchases = await loadPurchases();
-                    const purchase = purchases.find(p => p.id === pid);
-                    if (purchase) openPurchaseModal(purchase);
-                });
-            });
-
-            document.querySelectorAll('.delete-purchase-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const pid = e.currentTarget.getAttribute('data-id');
-                    const purchases = await loadPurchases();
-                    const pIndex = purchases.findIndex(p => p.id === pid);
-                    if (pIndex !== -1) {
-                        lastDeletedPurchase = purchases[pIndex];
-                        lastDeletedPurchaseIndex = pIndex;
-                        purchases.splice(pIndex, 1);
-                        await savePurchases(purchases);
-                        loadDailySpendCard(true);
-                        loadSemesterSummary();
-                        loadGoalCard();
-                        showUndoToast('purchase');
-                    }
-                });
-            });
-
-            document.querySelectorAll('.edit-income-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const iid = e.currentTarget.getAttribute('data-id');
-                    const incomeEntries = await loadIncome();
-                    const entry = incomeEntries.find(i => i.id === iid);
-                    if (entry) openIncomeModal(entry);
-                });
-            });
-
-            document.querySelectorAll('.delete-income-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const iid = e.currentTarget.getAttribute('data-id');
-                    const incomeEntries = await loadIncome();
-                    const iIndex = incomeEntries.findIndex(entry => entry.id === iid);
-                    if (iIndex !== -1) {
-                        lastDeletedIncome = incomeEntries[iIndex];
-                        lastDeletedIncomeIndex = iIndex;
-                        incomeEntries.splice(iIndex, 1);
-                        await saveIncome(incomeEntries);
-                        loadDailySpendCard(true);
-                        loadSemesterSummary();
-                        loadGoalCard();
-                        showUndoToast('income');
-                    }
-                });
-            });
-
-            document.querySelectorAll('.settle-reimbursement-chk').forEach(chk => {
-                chk.addEventListener('change', async (e) => {
-                    if (e.target.checked) {
-                        const pid = e.target.getAttribute('data-id');
-                        const purchases = await loadPurchases();
-                        const item = purchases.find(p => p.id === pid);
-                        if (item) {
-                            item.reimbursementSettled = true;
-                            await savePurchases(purchases);
-                            loadSemesterSummary();
-                            loadDailySpendCard(true);
-                            loadGoalCard();
-                        }
-                    }
-                });
-            });
-
-            const globalTooltip = document.getElementById('globalTooltip');
-            document.querySelectorAll('.pie-slice').forEach(slice => {
-                slice.addEventListener('mousemove', (e) => {
-                    const desc = slice.getAttribute('data-desc');
-                    const amt = slice.getAttribute('data-amount');
-                    const tag = slice.getAttribute('data-tag');
-                    if (desc && amt && tag) {
-                        globalTooltip.innerHTML = `<strong>${desc}</strong><br/>${tag} - ${formatCurrency(amt)}`;
-                        globalTooltip.style.left = (e.clientX + 15) + 'px';
-                        globalTooltip.style.top = (e.clientY + 15) + 'px';
-                        globalTooltip.classList.add('show');
-                    }
-                });
-                slice.addEventListener('mouseout', () => {
-                    globalTooltip.classList.remove('show');
-                });
-            });
         }
 
         async function loadGoalData() {
             const response = await window.electronAPI.getUserData('purchase_goal');
-            if (!response.success || !response.value) return null;
-
-            const value = response.value;
+            const value = response.success ? response.value : null;
+            if (!value) return null;
             if (Array.isArray(value.goals)) return value;
-            if (value.name) return { goals: [value] };
-            return null;
+            return value.name ? { goals: [value] } : null;
         }
 
-        async function saveGoalData(goalData) {
-            await window.electronAPI.setUserData('purchase_goal', goalData);
-        }
+        const saveGoalData = (goalData) => saveList('purchase_goal', goalData);
 
         async function removeGoal(idx, { createPurchase } = {}) {
-            const currentGoalData = await loadGoalData();
-            if (!currentGoalData || !currentGoalData.goals || !currentGoalData.goals[idx]) return;
+            const goalData = await loadGoalData();
+            const goal = goalData?.goals[idx];
+            if (!goal) return;
 
-            lastGoalsSnapshot = currentGoalData.goals.map(g => ({ ...g }));
-            lastDeletedGoal = currentGoalData.goals[idx];
-            lastDeletedGoalIndex = idx;
-            lastGoalPurchaseId = null;
+            const snapshot = goalData.goals.map((g) => ({ ...g }));
+            let purchaseId = null;
 
             if (createPurchase) {
-                const cost = Math.max(0, Number(lastDeletedGoal.cost) || 0);
-                lastGoalPurchaseId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-                const newPurchase = {
-                    id: lastGoalPurchaseId,
-                    amount: cost,
-                    description: lastDeletedGoal.name,
+                purchaseId = newId();
+                const purchases = await loadPurchases();
+                purchases.push({
+                    id: purchaseId,
+                    amount: Math.max(0, Number(goal.cost) || 0),
+                    description: goal.name,
                     tag: 'Goal Purchase',
                     date: todayISO(),
                     reimbursementSettled: false,
                     isGoal: true,
                     fromSurplus: true
-                };
-
-                const purchases = await loadPurchases();
-                purchases.push(newPurchase);
+                });
                 await savePurchases(purchases);
             }
 
-            currentGoalData.goals.splice(idx, 1);
+            goalData.goals.splice(idx, 1);
 
-            const remaining = currentGoalData.goals;
+            const remaining = goalData.goals;
             if (remaining.length > 0) {
-                const freedPercent = Math.max(0, Math.min(100, Number(lastDeletedGoal.allocationPercent) || 0));
-                const totalRemainingPercent = remaining.reduce((sum, g) => sum + (Math.max(0, Math.min(100, Number(g.allocationPercent) || 0))), 0);
+                const freedPercent = clampPercent(goal.allocationPercent);
+                const totalRemainingPercent = remaining.reduce((sum, g) => sum + clampPercent(g.allocationPercent), 0);
 
-                if (totalRemainingPercent > 0) {
-                    remaining.forEach(g => {
-                        const current = Math.max(0, Math.min(100, Number(g.allocationPercent) || 0));
-                        const share = freedPercent * (current / totalRemainingPercent);
-                        g.allocationPercent = Math.round(Math.min(100, current + share));
-                    });
-                } else {
-                    const evenShare = Math.round(freedPercent / remaining.length);
-                    remaining.forEach(g => {
-                        g.allocationPercent = evenShare;
-                    });
-                }
+                remaining.forEach((g) => {
+                    if (totalRemainingPercent > 0) {
+                        const current = clampPercent(g.allocationPercent);
+                        g.allocationPercent = Math.round(Math.min(100, current + freedPercent * (current / totalRemainingPercent)));
+                    } else {
+                        g.allocationPercent = Math.round(freedPercent / remaining.length);
+                    }
+                });
             }
 
-            await saveGoalData(currentGoalData);
+            await saveGoalData(goalData);
+            refreshAll();
+            showUndoToast(createPurchase ? 'Goal purchased.' : 'Goal deleted.', async () => {
+                await saveGoalData({ goals: snapshot });
+                if (purchaseId) await savePurchases((await loadPurchases()).filter((p) => p.id !== purchaseId));
+                refreshAll();
+            });
 
-            loadDailySpendCard(true);
-            loadSemesterSummary();
-            loadGoalCard();
-            showUndoToast(createPurchase ? 'goal' : 'goalDelete');
-
-            if (createPurchase) {
-                showGoalPurchaseCongrats(lastDeletedGoal);
-            }
+            if (createPurchase) showGoalPurchaseCongrats(goal);
         }
 
         async function loadGoalCard() {
-            const container = document.getElementById('goalCard');
+            const container = $('goalCard');
             const stats = await getFinancialStats();
 
             if (!stats) {
-                container.innerHTML = `
-                    <div class="setup-prompt">
-                        <div>
-                            <span class="setup-prompt-title">Purchase Goal</span>
-                            <span class="setup-prompt-desc">Finish your financial setup first, then set a target purchase to save toward.</span>
-                        </div>
-                        <button class="setup-prompt-btn" onclick="window.electronAPI.changePage('setup.html')">Get Started</button>
-                    </div>
-                `;
+                container.innerHTML = setupPrompt('Purchase Goal', 'Finish your financial setup first, then set a target purchase to save toward.');
                 return;
             }
 
+            const noBudget = stats.data.noFixedBudget;
             const goalData = await loadGoalData();
 
-            if (!goalData || !goalData.goals || goalData.goals.length === 0) {
-                const noBudget = stats.data.noFixedBudget;
-                container.innerHTML = `
-                    <div class="setup-prompt">
-                        <div>
-                            <span class="setup-prompt-title">Set a purchase goal</span>
-                            <span class="setup-prompt-desc">${noBudget ? "Goals are funded from your surplus, which isn't tracked without a fixed budget." : "Put a target purchase — a laptop, a trip — in your sights and dedicate a slice of your surplus toward it."}</span>
-                        </div>
-                        <button class="setup-prompt-btn" id="openGoalModalBtn" ${noBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Set Goal</button>
-                    </div>
-                `;
-                if (!noBudget) {
-                    document.getElementById('openGoalModalBtn').addEventListener('click', openGoalModal);
-                }
+            if (!goalData || goalData.goals.length === 0) {
+                container.innerHTML = setupPrompt(
+                    'Set a purchase goal',
+                    noBudget
+                        ? "Goals are funded from your surplus, which isn't tracked without a fixed budget."
+                        : 'Put a target purchase — a laptop, a trip — in your sights and dedicate a slice of your surplus toward it.',
+                    `<button class="setup-prompt-btn" id="openGoalModalBtn" ${noBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Set Goal</button>`
+                );
                 return;
             }
 
             const goals = goalData.goals;
-            const totalSurplus = stats.isSurplus && !stats.data.noFixedBudget ? stats.surplusDeficit : 0;
-
-            let actualSaved = [];
-            let isCapped = [];
+            const totalSurplus = stats.isSurplus && !noBudget ? stats.surplusDeficit : 0;
+            const costs = goals.map((g) => Math.max(0, Number(g.cost) || 0));
+            const actualSaved = [];
+            const isCapped = [];
             let overflowPool = 0;
 
-            goals.forEach((goal) => {
-                const cost = Math.max(0, Number(goal.cost) || 0);
-                const allocationPercent = Math.max(0, Math.min(100, Number(goal.allocationPercent) || 0));
-                const baseAllocation = totalSurplus * (allocationPercent / 100);
-
-                if (baseAllocation >= cost) {
-                    actualSaved.push(cost);
-                    isCapped.push(true);
-                    overflowPool += (baseAllocation - cost);
-                } else {
-                    actualSaved.push(baseAllocation);
-                    isCapped.push(false);
-                }
+            goals.forEach((goal, i) => {
+                const baseAllocation = totalSurplus * (clampPercent(goal.allocationPercent) / 100);
+                const capped = baseAllocation >= costs[i];
+                actualSaved.push(capped ? costs[i] : baseAllocation);
+                isCapped.push(capped);
+                if (capped) overflowPool += baseAllocation - costs[i];
             });
 
-            let uncappedIndices = isCapped.map((capped, i) => capped ? -1 : i).filter(i => i !== -1);
+            let uncappedIndices = isCapped.map((capped, i) => (capped ? -1 : i)).filter((i) => i !== -1);
             while (overflowPool > 0 && uncappedIndices.length > 0) {
-                let share = overflowPool / uncappedIndices.length;
+                const share = overflowPool / uncappedIndices.length;
+                const stillUncapped = [];
                 overflowPool = 0;
 
-                let stillUncapped = [];
-                for (let i of uncappedIndices) {
-                    let cost = Math.max(0, Number(goals[i].cost) || 0);
+                for (const i of uncappedIndices) {
                     actualSaved[i] += share;
-                    if (actualSaved[i] >= cost) {
-                        overflowPool += (actualSaved[i] - cost);
-                        actualSaved[i] = cost;
-                        isCapped[i] = true;
+                    if (actualSaved[i] >= costs[i]) {
+                        overflowPool += actualSaved[i] - costs[i];
+                        actualSaved[i] = costs[i];
                     } else {
                         stillUncapped.push(i);
                     }
@@ -1471,56 +760,41 @@
                 uncappedIndices = stillUncapped;
             }
 
-            const blocksHtml = goals.map((goal, index) => {
-                const cost = Math.max(0, Number(goal.cost) || 0);
-                const allocationPercent = Math.round(Math.max(0, Math.min(100, Number(goal.allocationPercent) || 0)));
+            container.innerHTML = goals.map((goal, index) => {
+                const cost = costs[index];
+                const allocationPercent = Math.round(clampPercent(goal.allocationPercent));
                 const saved = actualSaved[index];
-
                 const progressPercent = cost > 0 ? Math.max(0, Math.min(100, (saved / cost) * 100)) : 0;
                 const isComplete = cost > 0 && saved >= cost;
 
                 let statusNote;
                 if (isComplete) {
                     statusNote = "You've saved enough to cover it — nice work.";
-                } else if (stats.data.noFixedBudget) {
-                    statusNote = "Since you have no fixed budget, surplus tracking is disabled. Goals can only be manually funded via purchases.";
+                } else if (noBudget) {
+                    statusNote = 'Since you have no fixed budget, surplus tracking is disabled. Goals can only be manually funded via purchases.';
                 } else if (stats.isSurplus) {
                     statusNote = `${progressPercent.toFixed(0)}% of the way there, based on ${allocationPercent}% of your current surplus.`;
                 } else {
                     statusNote = "You're currently in a deficit, so no surplus is being allocated right now. This'll pick back up once you're back under budget.";
                 }
 
-                const checkmarkHtml = isComplete 
-                    ? `<input type="checkbox" class="goal-complete-chk" data-index="${index}" title="Mark as purchased to remove goal" style="margin-left: 8px; width: 16px; height: 16px; accent-color: #4ade80; cursor: pointer; vertical-align: middle;">` 
+                const checkmark = isComplete
+                    ? `<input type="checkbox" class="goal-complete-chk" data-index="${index}" title="Mark as purchased to remove goal" style="margin-left: 8px; width: 16px; height: 16px; accent-color: #4ade80; cursor: pointer; vertical-align: middle;">`
                     : '';
-
-                const header = index === 0
-                    ? `<div class="semester-header">
-                        <span class="semester-title" style="display: flex; align-items: center;">${escapeHtml(goal.name)}${checkmarkHtml}</span>
-                        <button class="semester-edit-btn" id="editGoalBtn" ${stats.data.noFixedBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Edit</button>
-                       </div>`
-                    : `<div class="semester-header">
-                        <span class="semester-title" style="display: flex; align-items: center;">${escapeHtml(goal.name)}${checkmarkHtml}</span>
-                       </div>`;
+                const editBtn = index === 0
+                    ? `<button class="semester-edit-btn" id="editGoalBtn" ${noBudget ? 'disabled title="Not available without a fixed budget"' : ''}>Edit</button>`
+                    : '';
 
                 return `
                     <div class="goal-block">
-                        ${header}
+                        <div class="semester-header">
+                            <span class="semester-title" style="display: flex; align-items: center;">${escapeHtml(goal.name)}${checkmark}</span>
+                            ${editBtn}
+                        </div>
                         <div class="semester-stats" style="margin-bottom: 16px;">
-                            <div class="semester-stat">
-                                <span class="semester-stat-value" style="color: ${isComplete ? '#4ade80' : '#ffffff'}">
-                                    ${getCurrencySymbol()}${Math.round(saved).toLocaleString()}
-                                </span>
-                                <span class="semester-stat-label">Saved Toward Goal</span>
-                            </div>
-                            <div class="semester-stat">
-                                <span class="semester-stat-value">${getCurrencySymbol()}${Math.round(cost).toLocaleString()}</span>
-                                <span class="semester-stat-label">Target Cost</span>
-                            </div>
-                            <div class="semester-stat">
-                                <span class="semester-stat-value">${allocationPercent}%</span>
-                                <span class="semester-stat-label">Of Surplus</span>
-                            </div>
+                            ${stat(formatWhole(saved), 'Saved Toward Goal', isComplete ? '#4ade80' : '#ffffff')}
+                            ${stat(formatWhole(cost), 'Target Cost')}
+                            ${stat(`${allocationPercent}%`, 'Of Surplus')}
                         </div>
                         <div class="semester-bar-track">
                             <div class="semester-bar-fill" style="width: ${progressPercent}%;"></div>
@@ -1529,211 +803,39 @@
                     </div>
                 `;
             }).join('');
-
-            container.innerHTML = blocksHtml;
-            
-            if (document.getElementById('editGoalBtn')) {
-                document.getElementById('editGoalBtn').addEventListener('click', openGoalModal);
-            }
-
-            document.querySelectorAll('.goal-complete-chk').forEach(chk => {
-                chk.addEventListener('change', async (e) => {
-                    if (e.target.checked) {
-                        const idx = parseInt(e.target.getAttribute('data-index'));
-                        await removeGoal(idx, { createPurchase: true });
-                    }
-                });
-            });
         }
 
-        function showUndoToast(type) {
-            undoType = type;
-            const toast = document.getElementById('undoToast');
-            const toastText = toast.querySelector('span');
-            
-            if (type === 'goal') {
-                toastText.innerText = 'Goal purchased.';
-            } else if (type === 'goalDelete') {
-                toastText.innerText = 'Goal deleted.';
-            } else if (type === 'purchase') {
-                toastText.innerText = 'Purchase deleted.';
-            } else if (type === 'income') {
-                toastText.innerText = 'Income entry deleted.';
-            } else if (type === 'category') {
-                toastText.innerText = 'Category deleted.';
-            } else if (type === 'incomeCategory') {
-                toastText.innerText = 'Category deleted.';
-            } else if (type === 'steadyIncome') {
-                toastText.innerText = 'Steady income removed.';
-            } else if (type === 'subscription') {
-                toastText.innerText = 'Subscription removed.';
-            }
-            
-            toast.classList.add('visible');
-            if (undoTimeout) clearTimeout(undoTimeout);
-            undoTimeout = setTimeout(() => {
-                toast.classList.remove('visible');
-                if (type === 'goal' || type === 'goalDelete') { lastDeletedGoal = null; lastGoalsSnapshot = null; }
-                if (type === 'purchase') lastDeletedPurchase = null;
-                if (type === 'income') lastDeletedIncome = null;
-                if (type === 'category') lastDeletedCategory = null;
-                if (type === 'incomeCategory') lastDeletedIncomeCategory = null;
-                if (type === 'steadyIncome') lastDeletedSteadyIncome = null;
-                if (type === 'subscription') lastDeletedSubscription = null;
-            }, 5000);
-        }
-
-        document.getElementById('undoBtn').addEventListener('click', async () => {
-            if ((undoType === 'goal' || undoType === 'goalDelete') && lastDeletedGoal !== null) {
-                if (lastGoalsSnapshot) {
-                    await saveGoalData({ goals: lastGoalsSnapshot });
-                } else {
-                    const currentGoalData = await loadGoalData();
-                    if (currentGoalData && currentGoalData.goals) {
-                        currentGoalData.goals.splice(lastDeletedGoalIndex, 0, lastDeletedGoal);
-                        await saveGoalData(currentGoalData);
-                    } else {
-                        await saveGoalData({ goals: [lastDeletedGoal] });
-                    }
-                }
-                
-                if (lastGoalPurchaseId) {
-                    const purchases = await loadPurchases();
-                    const updatedPurchases = purchases.filter(p => p.id !== lastGoalPurchaseId);
-                    await savePurchases(updatedPurchases);
-                }
-                
-                loadDailySpendCard(true);
-                loadSemesterSummary();
-                loadGoalCard();
-                
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedGoal = null;
-                lastGoalsSnapshot = null;
-            } else if (undoType === 'purchase' && lastDeletedPurchase !== null) {
-                const purchases = await loadPurchases();
-                purchases.splice(lastDeletedPurchaseIndex, 0, lastDeletedPurchase);
-                await savePurchases(purchases);
-                
-                loadDailySpendCard(true);
-                loadSemesterSummary();
-                loadGoalCard();
-                
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedPurchase = null;
-            } else if (undoType === 'income' && lastDeletedIncome !== null) {
-                const incomeEntries = await loadIncome();
-                incomeEntries.splice(lastDeletedIncomeIndex, 0, lastDeletedIncome);
-                await saveIncome(incomeEntries);
-
-                loadDailySpendCard(true);
-                loadSemesterSummary();
-                loadGoalCard();
-
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedIncome = null;
-            } else if (undoType === 'category' && lastDeletedCategory !== null) {
-                const customCategories = await loadCustomCategories();
-                const insertAt = Math.max(0, Math.min(lastDeletedCategoryIndex, customCategories.length));
-                customCategories.splice(insertAt, 0, lastDeletedCategory);
-                await saveCustomCategories(customCategories);
-
-                await renderCategoryTags(true);
-                loadDailySpendCard(true);
-
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedCategory = null;
-            } else if (undoType === 'incomeCategory' && lastDeletedIncomeCategory !== null) {
-                const customIncomeCategories = await loadCustomIncomeCategories();
-                const insertAt = Math.max(0, Math.min(lastDeletedIncomeCategoryIndex, customIncomeCategories.length));
-                customIncomeCategories.splice(insertAt, 0, lastDeletedIncomeCategory);
-                await saveCustomIncomeCategories(customIncomeCategories);
-
-                await renderIncomeCategoryTags(true);
-                loadDailySpendCard(true);
-
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedIncomeCategory = null;
-            } else if (undoType === 'steadyIncome' && lastDeletedSteadyIncome !== null) {
-                await saveSteadyIncome(lastDeletedSteadyIncome);
-
-                steadyJobNameInput.value = lastDeletedSteadyIncome.jobName || '';
-                steadyPayAmountInput.value = lastDeletedSteadyIncome.payAmount || '';
-                steadyPayFrequencySelect.value = lastDeletedSteadyIncome.payFrequency || 'weekly';
-                steadyStartDateInput.value = lastDeletedSteadyIncome.startDate || '';
-                deleteSteadyIncomeBtn.style.display = lastDeletedSteadyIncome.jobName ? 'inline-block' : 'none';
-                setSteadyIncomeExpanded(!!lastDeletedSteadyIncome.jobName);
-
-                loadDailySpendCard(true);
-                loadSemesterSummary();
-                loadGoalCard();
-
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedSteadyIncome = null;
-            } else if (undoType === 'subscription' && lastDeletedSubscription !== null) {
-                const subscriptions = await loadSubscriptions();
-                const insertAt = Math.max(0, Math.min(lastDeletedSubscriptionIndex, subscriptions.length));
-                subscriptions.splice(insertAt, 0, lastDeletedSubscription);
-                await saveSubscriptions(subscriptions);
-
-                await renderSubscriptionList();
-                loadDailySpendCard(true);
-                loadSemesterSummary();
-                loadGoalCard();
-
-                document.getElementById('undoToast').classList.remove('visible');
-                lastDeletedSubscription = null;
-            }
-            if (undoTimeout) clearTimeout(undoTimeout);
-        });
-
-        const goalModalOverlay = document.getElementById('goalModalOverlay');
-        const closeGoalModalBtn = document.getElementById('closeGoalModalBtn');
-        const submitGoalBtn = document.getElementById('submitGoalBtn');
-        const goalNameInput = document.getElementById('goalName');
-        const goalCostInput = document.getElementById('goalCost');
-        const goalPercentSlider = document.getElementById('goalPercentSlider');
-        const goalPercentValue = document.getElementById('goalPercentValue');
-        const goalPercentBar = document.getElementById('goalPercentBar');
-        const goalPercentBarFill = document.getElementById('goalPercentBarFill');
-        const goalError = document.getElementById('goalError');
-
-        const addSecondGoalBtn = document.getElementById('addSecondGoalBtn');
-        const removeSecondGoalBtn = document.getElementById('removeSecondGoalBtn');
-        const secondGoalSection = document.getElementById('secondGoalSection');
-        const goalName2Input = document.getElementById('goalName2');
-        const goalCost2Input = document.getElementById('goalCost2');
-        const goalPercentSlider2 = document.getElementById('goalPercentSlider2');
-        const goalPercentValue2 = document.getElementById('goalPercentValue2');
-        const goalPercentBar2 = document.getElementById('goalPercentBar2');
-        const goalPercentBarFill2 = document.getElementById('goalPercentBarFill2');
-        const goalRemainingNote = document.getElementById('goalRemainingNote');
+        const goalModalOverlay = $('goalModalOverlay');
+        const submitGoalBtn = $('submitGoalBtn');
+        const goalNameInput = $('goalName');
+        const goalCostInput = $('goalCost');
+        const goalPercentSlider = $('goalPercentSlider');
+        const goalError = $('goalError');
+        const addSecondGoalBtn = $('addSecondGoalBtn');
+        const secondGoalSection = $('secondGoalSection');
+        const goalName2Input = $('goalName2');
+        const goalCost2Input = $('goalCost2');
+        const goalPercentSlider2 = $('goalPercentSlider2');
+        const goalRemainingNote = $('goalRemainingNote');
 
         function createPercentBar({ track, fill, valueLabel, hiddenInput, step = 5, getMax = () => 100, onChange }) {
-            function snap(v) {
-                return Math.round(v / step) * step;
-            }
-            function clampToMax(v) {
-                return Math.max(0, Math.min(getMax(), v));
-            }
-            function render(v) {
+            function setValue(rawValue, { fireChange = true } = {}) {
+                const v = Math.max(0, Math.min(getMax(), Math.round(rawValue / step) * step));
                 fill.style.width = `${v}%`;
-                if (valueLabel) valueLabel.innerText = `${v}%`;
+                valueLabel.innerText = `${v}%`;
                 track.setAttribute('aria-valuenow', v);
                 track.setAttribute('aria-valuemax', getMax());
                 track.classList.toggle('at-zero', v === 0);
                 hiddenInput.value = v;
-            }
-            function setValue(rawValue, { fireChange = true } = {}) {
-                const v = clampToMax(snap(rawValue));
-                render(v);
-                if (fireChange && typeof onChange === 'function') onChange(v);
+                if (fireChange) onChange?.(v);
                 return v;
             }
-            function valueFromClientX(clientX) {
+
+            function setFromPointer(e) {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const rect = track.getBoundingClientRect();
-                const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
-                return ratio * 100;
+                setValue(rect.width > 0 ? ((clientX - rect.left) / rect.width) * 100 : 0);
+                e.preventDefault();
             }
 
             let dragging = false;
@@ -1741,16 +843,13 @@
             function handleDown(e) {
                 dragging = true;
                 track.focus();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                setValue(valueFromClientX(clientX));
-                e.preventDefault();
+                setFromPointer(e);
             }
+
             function handleMove(e) {
-                if (!dragging) return;
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                setValue(valueFromClientX(clientX));
-                e.preventDefault();
+                if (dragging) setFromPointer(e);
             }
+
             function handleUp() {
                 dragging = false;
             }
@@ -1764,10 +863,12 @@
 
             track.addEventListener('keydown', (e) => {
                 const current = Number(hiddenInput.value) || 0;
-                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setValue(current + step); e.preventDefault(); }
-                else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setValue(current - step); e.preventDefault(); }
-                else if (e.key === 'Home') { setValue(0); e.preventDefault(); }
-                else if (e.key === 'End') { setValue(getMax()); e.preventDefault(); }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setValue(current + step);
+                else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setValue(current - step);
+                else if (e.key === 'Home') setValue(0);
+                else if (e.key === 'End') setValue(getMax());
+                else return;
+                e.preventDefault();
             });
 
             return { setValue };
@@ -1775,27 +876,24 @@
 
         function syncSecondGoalRange() {
             const remaining = 100 - Number(goalPercentSlider.value);
-
             goal2Bar.setValue(Number(goalPercentSlider2.value), { fireChange: false });
-
             goalRemainingNote.innerText = remaining > 0
                 ? `${remaining}% of your surplus is available for this goal.`
-                : `Goal 1 is using 100% of your surplus, so nothing's left for a second goal — lower it above to free some up.`;
+                : "Goal 1 is using 100% of your surplus, so nothing's left for a second goal — lower it above to free some up.";
         }
 
         const goal1Bar = createPercentBar({
-            track: goalPercentBar,
-            fill: goalPercentBarFill,
-            valueLabel: goalPercentValue,
+            track: $('goalPercentBar'),
+            fill: $('goalPercentBarFill'),
+            valueLabel: $('goalPercentValue'),
             hiddenInput: goalPercentSlider,
-            getMax: () => 100,
             onChange: syncSecondGoalRange
         });
 
         const goal2Bar = createPercentBar({
-            track: goalPercentBar2,
-            fill: goalPercentBarFill2,
-            valueLabel: goalPercentValue2,
+            track: $('goalPercentBar2'),
+            fill: $('goalPercentBarFill2'),
+            valueLabel: $('goalPercentValue2'),
             hiddenInput: goalPercentSlider2,
             getMax: () => 100 - Number(goalPercentSlider.value)
         });
@@ -1815,24 +913,21 @@
         }
 
         addSecondGoalBtn.addEventListener('click', showSecondGoalSection);
-        removeSecondGoalBtn.addEventListener('click', hideSecondGoalSection);
+        $('removeSecondGoalBtn').addEventListener('click', hideSecondGoalSection);
 
-        document.getElementById('deleteGoal1Btn').addEventListener('click', async () => {
+        $('deleteGoal1Btn').addEventListener('click', async () => {
             closeGoalModal();
-            await removeGoal(0, { createPurchase: false });
+            await removeGoal(0);
         });
 
         async function openGoalModal() {
             const goalData = await loadGoalData();
-            const goals = (goalData && goalData.goals) ? goalData.goals : [];
-            const goal1 = goals[0] || null;
-            const goal2 = goals[1] || null;
+            const [goal1, goal2] = goalData?.goals ?? [];
 
             goalNameInput.value = goal1 ? goal1.name : '';
             goalCostInput.value = goal1 ? goal1.cost : '';
             goal1Bar.setValue(goal1 ? goal1.allocationPercent : 50, { fireChange: false });
-
-            document.getElementById('goal1HeaderRow').style.display = goal1 ? 'flex' : 'none';
+            $('goal1HeaderRow').style.display = goal1 ? 'flex' : 'none';
 
             if (goal2) {
                 goalName2Input.value = goal2.name;
@@ -1851,12 +946,13 @@
             goalModalOverlay.classList.remove('visible');
         }
 
-        closeGoalModalBtn.addEventListener('click', closeGoalModal);
+        $('closeGoalModalBtn').addEventListener('click', closeGoalModal);
         goalModalOverlay.addEventListener('click', (e) => {
             if (e.target === goalModalOverlay) closeGoalModal();
         });
 
         submitGoalBtn.addEventListener('click', async () => {
+            const symbol = getCurrencySymbol();
             const name = goalNameInput.value.trim();
             const cost = Number(goalCostInput.value);
             const allocationPercent = Number(goalPercentSlider.value);
@@ -1865,15 +961,14 @@
                 goalError.innerText = 'Give your goal a name.';
                 return;
             }
-            if (!cost || cost <= 0) {
-                goalError.innerText = `Enter a target cost greater than ${getCurrencySymbol()}0.`;
+            if (!(cost > 0)) {
+                goalError.innerText = `Enter a target cost greater than ${symbol}0.`;
                 return;
             }
 
             const goals = [{ name, cost, allocationPercent }];
-            const hasSecondGoal = secondGoalSection.style.display !== 'none';
 
-            if (hasSecondGoal) {
+            if (secondGoalSection.style.display !== 'none') {
                 const name2 = goalName2Input.value.trim();
                 const cost2 = Number(goalCost2Input.value);
                 const allocationPercent2 = Number(goalPercentSlider2.value);
@@ -1882,8 +977,8 @@
                     goalError.innerText = 'Give your second goal a name.';
                     return;
                 }
-                if (!cost2 || cost2 <= 0) {
-                    goalError.innerText = `Enter a target cost greater than ${getCurrencySymbol()}0 for your second goal.`;
+                if (!(cost2 > 0)) {
+                    goalError.innerText = `Enter a target cost greater than ${symbol}0 for your second goal.`;
                     return;
                 }
                 if (allocationPercent + allocationPercent2 > 100) {
@@ -1896,439 +991,29 @@
 
             submitGoalBtn.disabled = true;
             submitGoalBtn.innerText = 'Saving...';
-
             await saveGoalData({ goals });
-
             submitGoalBtn.disabled = false;
             submitGoalBtn.innerText = 'Save Goal';
             closeGoalModal();
             loadGoalCard();
         });
 
-        const purchaseModalOverlay = document.getElementById('purchaseModalOverlay');
-        const closePurchaseModalBtn = document.getElementById('closePurchaseModalBtn');
-        const submitPurchaseBtn = document.getElementById('submitPurchaseBtn');
-        const purchaseAmountInput = document.getElementById('purchaseAmount');
-        const purchaseDescriptionInput = document.getElementById('purchaseDescription');
-        const purchaseError = document.getElementById('purchaseError');
-
-        let selectedTag = 'Food';
-        let allCategoriesCache = [];
-        let selectedFundSource = 'daily';
-
-        function renderFundSourceSelector() {
-            document.querySelectorAll('#fundSourceGroup .tag-btn').forEach(btn => {
-                btn.classList.toggle('selected', btn.dataset.source === selectedFundSource);
-            });
-        }
-
-        document.querySelectorAll('#fundSourceGroup .tag-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (btn.disabled) return;
-                selectedFundSource = btn.dataset.source;
-                renderFundSourceSelector();
-            });
-        });
-
-        async function applyFundSourceAvailability() {
-            const stats = await getFinancialStats();
-            const surplusBtn = document.querySelector('#fundSourceGroup .tag-btn[data-source="surplus"]');
-            const noBudget = !!(stats && stats.data.noFixedBudget);
-            surplusBtn.disabled = noBudget;
-            surplusBtn.title = noBudget ? "Not available without a fixed budget" : '';
-        }
-
-        async function updateFundSourceNote() {
-            const note = document.getElementById('fundSourceNote');
-            const stats = await getFinancialStats();
-            if (!stats || stats.isBreak) {
-                note.innerText = '';
-                return;
-            }
-            if (stats.data.noFixedBudget) {
-                note.innerText = "You don't have a fixed budget. Surplus funding doesn't apply.";
-                return;
-            }
-            note.innerText = stats.isSurplus
-                ? `You currently have ${getCurrencySymbol()}${Math.round(stats.surplusDeficit).toLocaleString()} in surplus available.`
-                : `You're currently ${getCurrencySymbol()}${Math.round(Math.abs(stats.surplusDeficit)).toLocaleString()} in deficit — drawing from surplus isn't recommended right now.`;
-        }
-
-        async function renderCategoryTags(preserveSelection) {
-            allCategoriesCache = await getAllCategories();
-            const purchaseTagsContainer = document.getElementById('purchaseTags');
-            const previousSelected = selectedTag;
-            const stillExists = allCategoriesCache.some(c => c.name === previousSelected);
-
-            const sortedCategories = [...allCategoriesCache].sort((a, b) => {
-                if (a.name === 'Other') return 1;
-                if (b.name === 'Other') return -1;
-                return a.name.localeCompare(b.name);
-            });
-
-            if (!preserveSelection || !stillExists) {
-                selectedTag = sortedCategories.length > 0 ? sortedCategories[0].name : '';
-            }
-
-
-            purchaseTagsContainer.innerHTML = sortedCategories.map(cat => {
-                const isDefault = DEFAULT_CATEGORIES.some(d => d.name === cat.name);
-                const isSelected = cat.name === selectedTag ? ' selected' : '';
-                return `
-                    <div class="tag-btn-wrap">
-                        <button type="button" class="tag-btn${isSelected}" data-tag="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</button>
-                        ${isDefault ? '' : `<span class="tag-delete-x" data-tag="${escapeHtml(cat.name)}" title="Delete category">✕</span>`}
-                    </div>
-                `;
-            }).join('');
-
-            purchaseTagsContainer.querySelectorAll('.tag-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    purchaseTagsContainer.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
-                    selectedTag = btn.dataset.tag;
-                });
-            });
-
-            purchaseTagsContainer.querySelectorAll('.tag-delete-x').forEach(delBtn => {
-                delBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const tagToDelete = delBtn.dataset.tag;
-
-                    const customCategories = await loadCustomCategories();
-                    const cIndex = customCategories.findIndex(c => c.name === tagToDelete);
-                    if (cIndex === -1) return;
-
-                    lastDeletedCategory = customCategories[cIndex];
-                    lastDeletedCategoryIndex = cIndex;
-
-                    customCategories.splice(cIndex, 1);
-                    await saveCustomCategories(customCategories);
-                    await renderCategoryTags(true);
-                    loadDailySpendCard(true);
-                    showUndoToast('category');
-                });
-            });
-
-        }
-
-        async function renderIncomeCategoryTags(preserveSelection) {
-            allIncomeCategoriesCache = await getAllIncomeCategories();
-            const incomeTagsContainer = document.getElementById('incomeTags');
-            const previousSelected = selectedIncomeTag;
-            const stillExists = allIncomeCategoriesCache.some(c => c.name === previousSelected);
-
-            const sortedCategories = [...allIncomeCategoriesCache].sort((a, b) => {
-                if (a.name === 'Other') return 1;
-                if (b.name === 'Other') return -1;
-                return a.name.localeCompare(b.name);
-            });
-
-            if (!preserveSelection || !stillExists) {
-                selectedIncomeTag = sortedCategories.length > 0 ? sortedCategories[0].name : '';
-            }
-
-            incomeTagsContainer.innerHTML = sortedCategories.map(cat => {
-                const isDefault = INCOME_DEFAULT_CATEGORIES.some(d => d.name === cat.name);
-                const isSelected = cat.name === selectedIncomeTag ? ' selected' : '';
-                return `
-                    <div class="tag-btn-wrap">
-                        <button type="button" class="tag-btn${isSelected}" data-tag="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</button>
-                        ${isDefault ? '' : `<span class="tag-delete-x" data-tag="${escapeHtml(cat.name)}" title="Delete category">✕</span>`}
-                    </div>
-                `;
-            }).join('');
-
-            incomeTagsContainer.querySelectorAll('.tag-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    incomeTagsContainer.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
-                    selectedIncomeTag = btn.dataset.tag;
-                });
-            });
-
-            incomeTagsContainer.querySelectorAll('.tag-delete-x').forEach(delBtn => {
-                delBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const tagToDelete = delBtn.dataset.tag;
-
-                    const customIncomeCategories = await loadCustomIncomeCategories();
-                    const cIndex = customIncomeCategories.findIndex(c => c.name === tagToDelete);
-                    if (cIndex === -1) return;
-
-                    lastDeletedIncomeCategory = customIncomeCategories[cIndex];
-                    lastDeletedIncomeCategoryIndex = cIndex;
-
-                    customIncomeCategories.splice(cIndex, 1);
-                    await saveCustomIncomeCategories(customIncomeCategories);
-                    await renderIncomeCategoryTags(true);
-                    loadDailySpendCard(true);
-                    showUndoToast('incomeCategory');
-                });
-            });
-        }
-
-        document.getElementById('purchaseSplitToggle').addEventListener('change', (e) => {
-            document.getElementById('reimbursementField').style.display = e.target.checked ? 'block' : 'none';
-            if (!e.target.checked) {
-                document.getElementById('purchaseReimbursement').value = '';
-            }
-        });
-
-        const subscriptionToggleBtn = document.getElementById('subscriptionToggleBtn');
-        const subscriptionSection = document.getElementById('subscriptionSection');
-        const oneTimePurchaseFields = document.getElementById('oneTimePurchaseFields');
-        const subscriptionListContainer = document.getElementById('subscriptionListContainer');
-        const subscriptionNameInput = document.getElementById('subscriptionName');
-        const subscriptionAmountInput = document.getElementById('subscriptionAmount');
-        const subscriptionFrequencySelect = document.getElementById('subscriptionFrequency');
-        const subscriptionStartDateInput = document.getElementById('subscriptionStartDate');
-        const subscriptionError = document.getElementById('subscriptionError');
-        const saveSubscriptionBtn = document.getElementById('saveSubscriptionBtn');
-        let lastDeletedSubscription = null;
-        let lastDeletedSubscriptionIndex = -1;
-
-        function setSubscriptionExpanded(expanded) {
-            subscriptionSection.classList.toggle('collapsed', !expanded);
-            oneTimePurchaseFields.classList.toggle('collapsed', expanded);
-            subscriptionToggleBtn.innerText = expanded ? '− Hide subscription setup' : '+ Set up a subscription';
-        }
-
-        subscriptionToggleBtn.addEventListener('click', () => {
-            const isExpanded = !subscriptionSection.classList.contains('collapsed');
-            setSubscriptionExpanded(!isExpanded);
-        });
-
-        async function renderSubscriptionList() {
-            const subscriptions = await loadSubscriptions();
-
-            if (!subscriptions.length) {
-                subscriptionListContainer.innerHTML = '';
-                return;
-            }
-
-            subscriptionListContainer.innerHTML = subscriptions.map(sub => `
-                <div class="subscription-row" data-id="${sub.id}">
-                    <div class="subscription-row-info">
-                        <span class="subscription-row-name">${escapeHtml(sub.name)}</span>
-                        <span class="subscription-row-meta">${formatCurrency(sub.amount)} / ${sub.frequency === 'yearly' ? 'year' : 'month'}</span>
-                    </div>
-                    <button type="button" class="delete-purchase-btn subscription-delete-btn" data-id="${sub.id}" aria-label="Remove subscription" title="Remove this subscription">✕</button>
-                </div>
-            `).join('');
-
-            subscriptionListContainer.querySelectorAll('.subscription-delete-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const subId = btn.dataset.id;
-                    const currentSubs = await loadSubscriptions();
-                    const sIndex = currentSubs.findIndex(s => s.id === subId);
-                    if (sIndex === -1) return;
-
-                    lastDeletedSubscription = currentSubs[sIndex];
-                    lastDeletedSubscriptionIndex = sIndex;
-
-                    currentSubs.splice(sIndex, 1);
-                    await saveSubscriptions(currentSubs);
-                    await renderSubscriptionList();
-                    showUndoToast('subscription');
-                });
-            });
-        }
-
-        saveSubscriptionBtn.addEventListener('click', async () => {
-            const name = subscriptionNameInput.value.trim();
-            const amount = Number(subscriptionAmountInput.value);
-            const frequency = subscriptionFrequencySelect.value;
-            const startDate = subscriptionStartDateInput.value || todayISO();
-
-            if (!name) {
-                subscriptionError.innerText = 'Add a name for this subscription.';
-                return;
-            }
-            if (!amount || amount <= 0) {
-                subscriptionError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
-                return;
-            }
-
-            subscriptionError.innerText = '';
-            saveSubscriptionBtn.disabled = true;
-            saveSubscriptionBtn.innerText = 'Saving...';
-
-            const subscriptions = await loadSubscriptions();
-            subscriptions.push({
-                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                name,
-                amount,
-                frequency,
-                startDate,
-                nextBillingDate: startDate
-            });
-            await saveSubscriptions(subscriptions);
-            await processSubscriptionPayments();
-
-            subscriptionNameInput.value = '';
-            subscriptionAmountInput.value = '';
-            subscriptionFrequencySelect.value = 'monthly';
-            subscriptionStartDateInput.value = '';
-
-            saveSubscriptionBtn.disabled = false;
-            saveSubscriptionBtn.innerText = 'Add Subscription';
-            await renderSubscriptionList();
-            loadDailySpendCard(true);
-            loadSemesterSummary();
-            loadGoalCard();
-        });
-
-        async function openPurchaseModal(purchase = null) {
-            editingPurchaseId = purchase ? purchase.id : null;
-
-            purchaseError.innerText = '';
-
-            const modalTitleText = document.getElementById('purchaseModalTitleText');
-
-            if (purchase) {
-                modalTitleText.innerText = 'Edit Purchase';
-                submitPurchaseBtn.innerText = 'Save Changes';
-
-                purchaseAmountInput.value = purchase.amount;
-                purchaseDescriptionInput.value = purchase.description;
-
-                const hasReimbursement = !!purchase.reimbursement;
-                document.getElementById('purchaseSplitToggle').checked = hasReimbursement;
-                document.getElementById('reimbursementField').style.display = hasReimbursement ? 'block' : 'none';
-                document.getElementById('purchaseReimbursement').value = hasReimbursement ? purchase.reimbursement : '';
-
-                selectedTag = purchase.tag;
-                await renderCategoryTags(true);
-
-                selectedFundSource = purchase.fromSurplus ? 'surplus' : 'daily';
-                renderFundSourceSelector();
-            } else {
-                modalTitleText.innerText = 'Log a Purchase';
-                submitPurchaseBtn.innerText = 'Log Purchase';
-
-                purchaseAmountInput.value = '';
-                purchaseDescriptionInput.value = '';
-                document.getElementById('purchaseSplitToggle').checked = false;
-                document.getElementById('reimbursementField').style.display = 'none';
-                document.getElementById('purchaseReimbursement').value = '';
-
-                await renderCategoryTags(false);
-
-                selectedFundSource = 'daily';
-                renderFundSourceSelector();
-            }
-
-            updateFundSourceNote();
-            applyFundSourceAvailability();
-
-            subscriptionError.innerText = '';
-            subscriptionNameInput.value = '';
-            subscriptionAmountInput.value = '';
-            subscriptionFrequencySelect.value = 'monthly';
-            subscriptionStartDateInput.value = '';
-            await renderSubscriptionList();
-            setSubscriptionExpanded(false);
-
-            purchaseModalOverlay.classList.add('visible');
-        }
-
-        function closePurchaseModal() {
-            purchaseModalOverlay.classList.remove('visible');
-            editingPurchaseId = null;
-        }
-
-        closePurchaseModalBtn.addEventListener('click', closePurchaseModal);
-        purchaseModalOverlay.addEventListener('click', (e) => {
-            if (e.target === purchaseModalOverlay) closePurchaseModal();
-        });
-
-        submitPurchaseBtn.addEventListener('click', async () => {
-            const amount = Number(purchaseAmountInput.value);
-            const description = purchaseDescriptionInput.value.trim();
-
-            const isSplit = document.getElementById('purchaseSplitToggle').checked;
-            const reimbursement = isSplit ? Number(document.getElementById('purchaseReimbursement').value) : 0;
-
-            if (!amount || amount <= 0) {
-                purchaseError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
-                return;
-            }
-            if (!description) {
-                purchaseError.innerText = 'Add a short description.';
-                return;
-            }
-            if (isSplit && (reimbursement <= 0 || reimbursement >= amount)) {
-                purchaseError.innerText = `Reimbursement must be greater than ${getCurrencySymbol()}0 and less than total amount.`;
-                return;
-            }
-
-            const isEditing = !!editingPurchaseId;
-
-            submitPurchaseBtn.disabled = true;
-            submitPurchaseBtn.innerText = 'Saving...';
-
-            const purchases = await loadPurchases();
-
-            const fromSurplus = selectedFundSource === 'surplus';
-
-            if (isEditing) {
-                const existing = purchases.find(p => p.id === editingPurchaseId);
-                if (existing) {
-                    existing.amount = amount;
-                    existing.description = description;
-                    existing.tag = selectedTag;
-                    existing.fromSurplus = fromSurplus;
-                    delete existing.liabilityId;
-                    if (isSplit) {
-                        if (!existing.reimbursement) existing.reimbursementSettled = false;
-                        existing.reimbursement = reimbursement;
-                    } else {
-                        delete existing.reimbursement;
-                        delete existing.reimbursementSettled;
-                    }
-                }
-            } else {
-                purchases.push({
-                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    amount,
-                    description,
-                    tag: selectedTag,
-                    date: todayISO(),
-                    reimbursement: reimbursement > 0 ? reimbursement : undefined,
-                    reimbursementSettled: false,
-                    fromSurplus
-                });
-            }
-            await savePurchases(purchases);
-
-            submitPurchaseBtn.disabled = false;
-            submitPurchaseBtn.innerText = isEditing ? 'Save Changes' : 'Log Purchase';
-            closePurchaseModal();
-            loadDailySpendCard(true);
-            loadSemesterSummary();
-            loadGoalCard();
-            if (!isEditing) playPurchaseLoggedSound();
-        });
-
-        const incomeModalOverlay = document.getElementById('incomeModalOverlay');
-        const closeIncomeModalBtn = document.getElementById('closeIncomeModalBtn');
-        const submitIncomeBtn = document.getElementById('submitIncomeBtn');
-        const incomeAmountInput = document.getElementById('incomeAmount');
-        const incomeDescriptionInput = document.getElementById('incomeDescription');
-        const incomeError = document.getElementById('incomeError');
-        const incomeModalTitleText = document.getElementById('incomeModalTitleText');
-        const steadyJobNameInput = document.getElementById('steadyJobName');
-        const steadyPayAmountInput = document.getElementById('steadyPayAmount');
-        const steadyPayFrequencySelect = document.getElementById('steadyPayFrequency');
-        const steadyStartDateInput = document.getElementById('steadyStartDate');
-        const steadyIncomeError = document.getElementById('steadyIncomeError');
-        const saveSteadyIncomeBtn = document.getElementById('saveSteadyIncomeBtn');
-        const deleteSteadyIncomeBtn = document.getElementById('deleteSteadyIncomeBtn');
-        const steadyIncomeToggleBtn = document.getElementById('steadyIncomeToggleBtn');
-        const steadyIncomeSection = document.getElementById('steadyIncomeSection');
-        const oneTimeIncomeFields = document.getElementById('oneTimeIncomeFields');
-        let editingIncomeId = null;
+        const incomeModalOverlay = $('incomeModalOverlay');
+        const submitIncomeBtn = $('submitIncomeBtn');
+        const incomeAmountInput = $('incomeAmount');
+        const incomeDescriptionInput = $('incomeDescription');
+        const incomeError = $('incomeError');
+        const steadyJobNameInput = $('steadyJobName');
+        const steadyPayAmountInput = $('steadyPayAmount');
+        const steadyPayFrequencySelect = $('steadyPayFrequency');
+        const steadyStartDateInput = $('steadyStartDate');
+        const steadyIncomeError = $('steadyIncomeError');
+        const saveSteadyIncomeBtn = $('saveSteadyIncomeBtn');
+        const deleteSteadyIncomeBtn = $('deleteSteadyIncomeBtn');
+        const steadyIncomeToggleBtn = $('steadyIncomeToggleBtn');
+        const steadyIncomeSection = $('steadyIncomeSection');
+        const oneTimeIncomeFields = $('oneTimeIncomeFields');
+        const incomeTagPicker = createTagPicker($('incomeTags'), INCOME_DEFAULT_CATEGORIES, 'custom_income_categories', loadDailySpendCard);
 
         function setSteadyIncomeExpanded(expanded) {
             steadyIncomeSection.classList.toggle('collapsed', !expanded);
@@ -2336,39 +1021,28 @@
             steadyIncomeToggleBtn.innerText = expanded ? '− Hide steady income setup' : '+ Set up steady income';
         }
 
-        steadyIncomeToggleBtn.addEventListener('click', () => {
-            const isExpanded = !steadyIncomeSection.classList.contains('collapsed');
-            setSteadyIncomeExpanded(!isExpanded);
-        });
+        function fillSteadyForm(steady) {
+            steadyJobNameInput.value = steady?.jobName || '';
+            steadyPayAmountInput.value = steady?.payAmount || '';
+            steadyPayFrequencySelect.value = steady?.payFrequency || 'weekly';
+            steadyStartDateInput.value = steady?.startDate || '';
+            steadyIncomeError.innerText = '';
+            deleteSteadyIncomeBtn.style.display = steady?.jobName ? 'inline-block' : 'none';
+        }
+
+        steadyIncomeToggleBtn.addEventListener('click', () => setSteadyIncomeExpanded(steadyIncomeSection.classList.contains('collapsed')));
 
         async function openIncomeModal(entry = null) {
-            editingIncomeId = entry ? entry.id : null;
+            editingIncomeId = entry?.id ?? null;
             incomeError.innerText = '';
-            steadyIncomeError.innerText = '';
+            $('incomeModalTitleText').innerText = entry ? 'Edit Income' : 'Log Income';
+            submitIncomeBtn.innerText = entry ? 'Save Changes' : 'Log Income';
+            incomeAmountInput.value = entry ? entry.amount : '';
+            incomeDescriptionInput.value = entry ? entry.description : '';
+            await incomeTagPicker.render(entry ? entry.tag || 'Job/Wages' : undefined);
 
-            if (entry) {
-                incomeModalTitleText.innerText = 'Edit Income';
-                submitIncomeBtn.innerText = 'Save Changes';
-                incomeAmountInput.value = entry.amount;
-                incomeDescriptionInput.value = entry.description;
-                selectedIncomeTag = entry.tag || 'Job/Wages';
-                await renderIncomeCategoryTags(true);
-            } else {
-                incomeModalTitleText.innerText = 'Log Income';
-                submitIncomeBtn.innerText = 'Log Income';
-                incomeAmountInput.value = '';
-                incomeDescriptionInput.value = '';
-                await renderIncomeCategoryTags(false);
-            }
-
-            const steady = await loadSteadyIncome();
-            steadyJobNameInput.value = steady ? steady.jobName || '' : '';
-            steadyPayAmountInput.value = steady ? steady.payAmount || '' : '';
-            steadyPayFrequencySelect.value = steady ? steady.payFrequency || 'weekly' : 'weekly';
-            steadyStartDateInput.value = steady ? steady.startDate || '' : '';
-            deleteSteadyIncomeBtn.style.display = steady && steady.jobName ? 'inline-block' : 'none';
+            fillSteadyForm(await loadSteadyIncome());
             setSteadyIncomeExpanded(false);
-
             incomeModalOverlay.classList.add('visible');
         }
 
@@ -2377,7 +1051,7 @@
             editingIncomeId = null;
         }
 
-        closeIncomeModalBtn.addEventListener('click', closeIncomeModal);
+        $('closeIncomeModalBtn').addEventListener('click', closeIncomeModal);
         incomeModalOverlay.addEventListener('click', (e) => {
             if (e.target === incomeModalOverlay) closeIncomeModal();
         });
@@ -2386,7 +1060,7 @@
             const amount = Number(incomeAmountInput.value);
             const description = incomeDescriptionInput.value.trim();
 
-            if (!amount || amount <= 0) {
+            if (!(amount > 0)) {
                 incomeError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
                 return;
             }
@@ -2395,51 +1069,36 @@
                 return;
             }
 
-            const isEditing = !!editingIncomeId;
-
+            const id = editingIncomeId;
             submitIncomeBtn.disabled = true;
             submitIncomeBtn.innerText = 'Saving...';
 
             const incomeEntries = await loadIncome();
 
-            if (isEditing) {
-                const existing = incomeEntries.find(entry => entry.id === editingIncomeId);
-                if (existing) {
-                    existing.amount = amount;
-                    existing.description = description;
-                    existing.tag = selectedIncomeTag;
-                }
+            if (id) {
+                const existing = incomeEntries.find((entry) => entry.id === id);
+                if (existing) Object.assign(existing, { amount, description, tag: incomeTagPicker.selected });
             } else {
-                incomeEntries.push({
-                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    amount,
-                    description,
-                    tag: selectedIncomeTag,
-                    date: todayISO()
-                });
+                incomeEntries.push({ id: newId(), amount, description, tag: incomeTagPicker.selected, date: todayISO() });
             }
             await saveIncome(incomeEntries);
 
             submitIncomeBtn.disabled = false;
-            submitIncomeBtn.innerText = isEditing ? 'Save Changes' : 'Log Income';
             closeIncomeModal();
-            loadDailySpendCard(true);
-            loadSemesterSummary();
-            loadGoalCard();
+            refreshAll();
             showIncomeCongrats();
         });
 
         saveSteadyIncomeBtn.addEventListener('click', async () => {
             const jobName = steadyJobNameInput.value.trim();
             const payAmount = Number(steadyPayAmountInput.value);
-            const payFrequency = steadyPayFrequencySelect.value;
             const startDate = steadyStartDateInput.value || todayISO();
 
             if (!jobName) {
                 steadyIncomeError.innerText = 'Add a name for this income source.';
                 return;
             }
-            if (!payAmount || payAmount <= 0) {
+            if (!(payAmount > 0)) {
                 steadyIncomeError.innerText = `Enter a pay amount greater than ${getCurrencySymbol()}0.`;
                 return;
             }
@@ -2448,93 +1107,112 @@
             saveSteadyIncomeBtn.disabled = true;
             saveSteadyIncomeBtn.innerText = 'Saving...';
 
-            const existingSteady = await loadSteadyIncome();
-            const startDateChanged = !existingSteady || existingSteady.startDate !== startDate;
-            const steady = {
+            const existing = await loadSteadyIncome();
+            await saveSteadyIncome({
                 jobName,
                 payAmount,
-                payFrequency,
+                payFrequency: steadyPayFrequencySelect.value,
                 startDate,
-                nextPaydayDate: startDateChanged ? startDate : (existingSteady.nextPaydayDate || startDate)
-            };
-            await saveSteadyIncome(steady);
+                nextPaydayDate: existing && existing.startDate === startDate ? existing.nextPaydayDate || startDate : startDate
+            });
             await processSteadyIncomePaydays();
 
             saveSteadyIncomeBtn.disabled = false;
             saveSteadyIncomeBtn.innerText = 'Save Steady Income';
             closeIncomeModal();
-            loadDailySpendCard(true);
-            loadSemesterSummary();
-            loadGoalCard();
+            refreshAll();
             showIncomeCongrats();
         });
 
         deleteSteadyIncomeBtn.addEventListener('click', async () => {
-            lastDeletedSteadyIncome = await loadSteadyIncome();
+            const previous = await loadSteadyIncome();
+            if (!previous) return;
+
             await saveSteadyIncome({});
-
-            steadyJobNameInput.value = '';
-            steadyPayAmountInput.value = '';
-            steadyPayFrequencySelect.value = 'weekly';
-            steadyStartDateInput.value = '';
-            steadyIncomeError.innerText = '';
-            deleteSteadyIncomeBtn.style.display = 'none';
+            fillSteadyForm(null);
             setSteadyIncomeExpanded(false);
-
-            loadDailySpendCard(true);
-            loadSemesterSummary();
-            loadGoalCard();
-            showUndoToast('steadyIncome');
+            refreshAll();
+            showUndoToast('Steady income removed.', async () => {
+                await saveSteadyIncome(previous);
+                fillSteadyForm(previous);
+                setSteadyIncomeExpanded(!!previous.jobName);
+                refreshAll();
+            });
         });
 
-        const congratsModalOverlay = document.getElementById('congratsModalOverlay');
-        const closeCongratsBtn = document.getElementById('closeCongratsBtn');
-        const congratsTitle = document.getElementById('congratsTitle');
-        const congratsLimits = document.getElementById('congratsLimits');
-        const congratsSubtitle = document.getElementById('congratsSubtitle');
+        document.addEventListener('click', async (e) => {
+            const clickActions = { logIncomeBtn: openIncomeModal, affordCheckBtn: openAffordModal, openGoalModalBtn: openGoalModal, editGoalBtn: openGoalModal };
+            const buttonId = e.target.closest('button[id]')?.id;
+            if (clickActions.hasOwnProperty(buttonId)) clickActions[buttonId]();
+
+            const btn = e.target.closest('.edit-income-btn, .delete-income-btn');
+            if (!btn) return;
+
+            const entries = await loadIncome();
+            const index = entries.findIndex((entry) => entry.id === btn.dataset.id);
+            if (index === -1) return;
+            if (btn.classList.contains('edit-income-btn')) return openIncomeModal(entries[index]);
+
+            const [removed] = entries.splice(index, 1);
+            await saveIncome(entries);
+            refreshAll();
+            showUndoToast('Income entry deleted.', async () => {
+                const current = await loadIncome();
+                current.splice(index, 0, removed);
+                await saveIncome(current);
+                refreshAll();
+            });
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.matches('.goal-complete-chk') && e.target.checked) {
+                removeGoal(Number(e.target.dataset.index), { createPurchase: true });
+            }
+        });
+
+        const congratsModalOverlay = $('congratsModalOverlay');
+        const goalCongratsModalOverlay = $('goalCongratsModalOverlay');
+
+        const limitBox = (value, label) => `
+            <div class="congrats-limit-box">
+                <span class="congrats-limit-value">${value}</span>
+                <span class="congrats-limit-label">${label}</span>
+            </div>
+        `;
 
         async function showIncomeCongrats(customTitle, customSubtitle) {
             const stats = await getFinancialStats();
             if (!stats) return;
 
             const { roundedWeekday, roundedWeekend, weightFactor } = stats;
+            const hasWeekendLimit = weightFactor !== 1;
 
-            congratsTitle.innerText = customTitle || 'Congratulations!';
-
-            if (weightFactor !== 1) {
-                congratsSubtitle.innerText = customSubtitle || "Your income has been logged. Here are your updated safe-spend limits:";
-                congratsLimits.innerHTML = `
-                    <div class="congrats-limit-box">
-                        <span class="congrats-limit-value">${getCurrencySymbol()}${roundedWeekday.toLocaleString()}</span>
-                        <span class="congrats-limit-label">Weekday Limit</span>
-                    </div>
-                    <div class="congrats-limit-box">
-                        <span class="congrats-limit-value">${getCurrencySymbol()}${roundedWeekend.toLocaleString()}</span>
-                        <span class="congrats-limit-label">Weekend Limit</span>
-                    </div>
-                `;
-            } else {
-                congratsSubtitle.innerText = customSubtitle || "Your income has been logged. Here's your updated daily safe-spend limit:";
-                congratsLimits.innerHTML = `
-                    <div class="congrats-limit-box">
-                        <span class="congrats-limit-value">${getCurrencySymbol()}${roundedWeekday.toLocaleString()}</span>
-                        <span class="congrats-limit-label">Daily Limit</span>
-                    </div>
-                `;
-            }
+            $('congratsTitle').innerText = customTitle || 'Congratulations!';
+            $('congratsSubtitle').innerText = customSubtitle || (hasWeekendLimit
+                ? 'Your income has been logged. Here are your updated safe-spend limits:'
+                : "Your income has been logged. Here's your updated daily safe-spend limit:");
+            $('congratsLimits').innerHTML = hasWeekendLimit
+                ? limitBox(formatWhole(roundedWeekday), 'Weekday Limit') + limitBox(formatWhole(roundedWeekend), 'Weekend Limit')
+                : limitBox(formatWhole(roundedWeekday), 'Daily Limit');
 
             congratsModalOverlay.classList.add('visible');
             launchConfetti();
             playFanfareSound();
         }
 
-        function closeCongratsModal() {
-            congratsModalOverlay.classList.remove('visible');
+        function showGoalPurchaseCongrats(goal) {
+            $('goalCongratsSubtitle').innerText = `You saved up and bought ${goal.name}. Nice work!`;
+            $('goalCongratsLimits').innerHTML = limitBox(formatWhole(Math.max(0, Number(goal.cost) || 0)), 'Goal Purchased');
+
+            goalCongratsModalOverlay.classList.add('visible');
+            launchConfetti();
+            playFanfareSound();
         }
 
-        closeCongratsBtn.addEventListener('click', closeCongratsModal);
-        congratsModalOverlay.addEventListener('click', (e) => {
-            if (e.target === congratsModalOverlay) closeCongratsModal();
+        [congratsModalOverlay, goalCongratsModalOverlay].forEach((overlay) => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay || e.target.closest('.modal-submit-btn')) overlay.classList.remove('visible');
+            });
         });
 
         function launchConfetti() {
@@ -2543,8 +1221,7 @@
             container.className = 'confetti-container';
             document.body.appendChild(container);
 
-            const pieceCount = 90;
-            for (let i = 0; i < pieceCount; i++) {
+            for (let i = 0; i < 90; i++) {
                 const piece = document.createElement('div');
                 piece.className = 'confetti-piece';
                 piece.style.left = `${Math.random() * 100}vw`;
@@ -2552,26 +1229,22 @@
                 piece.style.animationDuration = `${2.2 + Math.random() * 1.6}s`;
                 piece.style.animationDelay = `${Math.random() * 0.4}s`;
                 piece.style.transform = `rotate(${Math.random() * 360}deg)`;
-                if (Math.random() > 0.5) {
-                    piece.style.borderRadius = '50%';
-                }
+                if (Math.random() > 0.5) piece.style.borderRadius = '50%';
                 container.appendChild(piece);
             }
 
-            setTimeout(() => {
-                container.remove();
-            }, 4500);
+            setTimeout(() => container.remove(), 4500);
         }
 
-        let paymentAudioCtx = null;
+        let audioCtx = null;
 
-        document.addEventListener('click', function unlockPaymentAudio() {
-            if (!paymentAudioCtx) {
-                paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (paymentAudioCtx.state === 'suspended') paymentAudioCtx.resume();
-            document.removeEventListener('click', unlockPaymentAudio);
-        }, { once: true });
+        function getAudioCtx() {
+            audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        document.addEventListener('click', getAudioCtx, { once: true });
 
         function playBrassNote(ctx, freq, startTime, length, peakGain) {
             const filter = ctx.createBiquadFilter();
@@ -2593,89 +1266,28 @@
                 osc.stop(startTime + length + 0.05);
             });
 
-            const attack = 0.03;
-            const release = length * 0.55;
             gainNode.gain.setValueAtTime(0.0001, startTime);
-            gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + attack);
-            gainNode.gain.setValueAtTime(peakGain, startTime + length - release);
+            gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.03);
+            gainNode.gain.setValueAtTime(peakGain, startTime + length * 0.45);
             gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
         }
 
-        function playFanfareSound() {
+        function playNotes(notes) {
             if (localStorage.getItem('soundsMuted') === 'true') return;
             try {
-                if (!paymentAudioCtx) {
-                    paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                const ctx = paymentAudioCtx;
-                if (ctx.state === 'suspended') ctx.resume();
-
-                const notes = [
-                    { freq: 392.00, start: 0,    length: 0.16, gain: 0.16 },
-                    { freq: 523.25, start: 0.18, length: 0.16, gain: 0.16 },
-                    { freq: 659.25, start: 0.36, length: 0.5,  gain: 0.20 }
-                ];
-
-                notes.forEach(({ freq, start, length, gain }) => {
-                    playBrassNote(ctx, freq, ctx.currentTime + start, length, gain);
-                });
-            } catch (e) {
-            }
+                const ctx = getAudioCtx();
+                notes.forEach(([freq, start, length, gain]) => playBrassNote(ctx, freq, ctx.currentTime + start, length, gain));
+            } catch {}
         }
 
-        function playPurchaseLoggedSound() {
-            if (localStorage.getItem('soundsMuted') === 'true') return;
-            try {
-                if (!paymentAudioCtx) {
-                    paymentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                const ctx = paymentAudioCtx;
-                if (ctx.state === 'suspended') ctx.resume();
+        const playFanfareSound = () => playNotes([[392.00, 0, 0.16, 0.16], [523.25, 0.18, 0.16, 0.16], [659.25, 0.36, 0.5, 0.20]]);
+        const playPurchaseLoggedSound = () => playNotes([[493.88, 0, 0.12, 0.10]]);
 
-                playBrassNote(ctx, 493.88, ctx.currentTime, 0.12, 0.10);
-            } catch (e) {
-            }
-        }
-
-        const goalCongratsModalOverlay = document.getElementById('goalCongratsModalOverlay');
-        const closeGoalCongratsBtn = document.getElementById('closeGoalCongratsBtn');
-        const goalCongratsTitle = document.getElementById('goalCongratsTitle');
-        const goalCongratsSubtitle = document.getElementById('goalCongratsSubtitle');
-        const goalCongratsLimits = document.getElementById('goalCongratsLimits');
-
-        function showGoalPurchaseCongrats(goal) {
-            const cost = Math.max(0, Number(goal.cost) || 0);
-
-            goalCongratsTitle.innerText = 'Goal Achieved!';
-            goalCongratsSubtitle.innerText = `You saved up and bought ${goal.name}. Nice work!`;
-            goalCongratsLimits.innerHTML = `
-                <div class="congrats-limit-box">
-                    <span class="congrats-limit-value">${getCurrencySymbol()}${Math.round(cost).toLocaleString()}</span>
-                    <span class="congrats-limit-label">Goal Purchased</span>
-                </div>
-            `;
-
-            goalCongratsModalOverlay.classList.add('visible');
-            launchConfetti();
-            playFanfareSound();
-        }
-
-        function closeGoalCongratsModal() {
-            goalCongratsModalOverlay.classList.remove('visible');
-        }
-
-        closeGoalCongratsBtn.addEventListener('click', closeGoalCongratsModal);
-        goalCongratsModalOverlay.addEventListener('click', (e) => {
-            if (e.target === goalCongratsModalOverlay) closeGoalCongratsModal();
-        });
-
-        const affordModalOverlay = document.getElementById('affordModalOverlay');
-        const closeAffordModalBtn = document.getElementById('closeAffordModalBtn');
-        const checkAffordBtn = document.getElementById('checkAffordBtn');
-        const affordAmountInput = document.getElementById('affordAmount');
-        const affordDescriptionInput = document.getElementById('affordDescription');
-        const affordError = document.getElementById('affordError');
-        const affordResult = document.getElementById('affordResult');
+        const affordModalOverlay = $('affordModalOverlay');
+        const affordAmountInput = $('affordAmount');
+        const affordDescriptionInput = $('affordDescription');
+        const affordError = $('affordError');
+        const affordResult = $('affordResult');
 
         function openAffordModal() {
             affordAmountInput.value = '';
@@ -2690,20 +1302,21 @@
             affordModalOverlay.classList.remove('visible');
         }
 
-        closeAffordModalBtn.addEventListener('click', closeAffordModal);
+        $('closeAffordModalBtn').addEventListener('click', closeAffordModal);
         affordModalOverlay.addEventListener('click', (e) => {
             if (e.target === affordModalOverlay) closeAffordModal();
         });
 
-        checkAffordBtn.addEventListener('click', async () => {
+        $('checkAffordBtn').addEventListener('click', async () => {
             const amount = Number(affordAmountInput.value);
             const description = affordDescriptionInput.value.trim();
+            const symbol = getCurrencySymbol();
 
             affordError.innerText = '';
             affordResult.style.display = 'none';
 
-            if (!amount || amount <= 0) {
-                affordError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
+            if (!(amount > 0)) {
+                affordError.innerText = `Enter an amount greater than ${symbol}0.`;
                 return;
             }
 
@@ -2714,40 +1327,32 @@
             }
 
             const { surplusDeficit, currentNetRunway, data, todayStr, weightFactor } = stats;
-
-            let verdictLabel, verdictColor, detail;
+            let verdictLabel;
+            let verdictColor;
+            let detail;
 
             if (data.noFixedBudget) {
                 verdictLabel = 'Yes';
                 verdictColor = '#4ade80';
-                detail = `You don't have a fixed budget set, so there are no limits stopping you. Logging this will simply increase your total tracked spending by ${getCurrencySymbol()}${amount.toLocaleString()}.`;
-            } else if (amount <= currentNetRunway) {
-                if (surplusDeficit > 0 && amount <= surplusDeficit) {
-                    const percent = Math.round((amount / surplusDeficit) * 100);
-                    const leftover = Math.round(surplusDeficit - amount);
-                    verdictLabel = 'Yes';
-                    verdictColor = '#4ade80';
-                    detail = `This fits inside your surplus — it'll use about ${percent}% of it, leaving ${getCurrencySymbol()}${leftover.toLocaleString()} to spare.`;
-                } else {
-                    const newRunway = currentNetRunway - amount;
-                    const now = new Date(todayStr + 'T00:00:00');
-                    const end = new Date(data.endDate + 'T00:00:00');
-                    const remainingWeight = calculateWeightRange(now, end, weightFactor);
-                    const newBaseUnit = remainingWeight > 0 ? (newRunway / remainingWeight) : 0;
-                    const newWeekdaySpend = Math.round(newBaseUnit);
-                    const newWeekendSpend = Math.round(newBaseUnit * weightFactor);
-
-                    verdictLabel = 'Tight, but doable';
-                    verdictColor = '#f59e0b';
-                    detail = weightFactor !== 1
-                        ? `It's affordable, but it'll wipe out your surplus and dip into your base budget. Your daily safe spend would drop to ${getCurrencySymbol()}${newWeekdaySpend.toLocaleString()} on weekdays and ${getCurrencySymbol()}${newWeekendSpend.toLocaleString()} on weekends for the rest of the semester.`
-                        : `It's affordable, but it'll wipe out your surplus and dip into your base budget. Your daily safe spend would drop to ${getCurrencySymbol()}${newWeekdaySpend.toLocaleString()} for the rest of the semester.`;
-                }
-            } else {
-                const shortfall = Math.round(amount - currentNetRunway);
+                detail = `You don't have a fixed budget set, so there are no limits stopping you. Logging this will simply increase your total tracked spending by ${symbol}${amount.toLocaleString()}.`;
+            } else if (amount > currentNetRunway) {
                 verdictLabel = 'No';
                 verdictColor = '#f87171';
-                detail = `You don't have the runway for this. It would leave you ${getCurrencySymbol()}${shortfall.toLocaleString()} short by the end of the semester.`;
+                detail = `You don't have the runway for this. It would leave you ${formatWhole(amount - currentNetRunway)} short by the end of the semester.`;
+            } else if (surplusDeficit > 0 && amount <= surplusDeficit) {
+                verdictLabel = 'Yes';
+                verdictColor = '#4ade80';
+                detail = `This fits inside your surplus — it'll use about ${Math.round((amount / surplusDeficit) * 100)}% of it, leaving ${formatWhole(surplusDeficit - amount)} to spare.`;
+            } else {
+                const remainingWeight = calculateWeightRange(new Date(todayStr + 'T00:00:00'), new Date(data.endDate + 'T00:00:00'), weightFactor);
+                const newBaseUnit = remainingWeight > 0 ? (currentNetRunway - amount) / remainingWeight : 0;
+                const newLimits = weightFactor !== 1
+                    ? `${formatWhole(newBaseUnit)} on weekdays and ${formatWhole(newBaseUnit * weightFactor)} on weekends`
+                    : formatWhole(newBaseUnit);
+
+                verdictLabel = 'Tight, but doable';
+                verdictColor = '#f59e0b';
+                detail = `It's affordable, but it'll wipe out your surplus and dip into your base budget. Your daily safe spend would drop to ${newLimits} for the rest of the semester.`;
             }
 
             affordResult.style.display = 'block';
@@ -2757,50 +1362,41 @@
             `;
         });
 
-        processSteadyIncomePaydays().then((result) => {
-            loadSemesterSummary();
-            loadDailySpendCard(true);
-            loadGoalCard();
+        const sidebar = $('sidebar');
+        const sidebarOverlay = $('sidebarOverlay');
 
-            if (result && result.count > 0) {
-                const subtitle = result.count > 1
-                    ? `Auto-logged ${getCurrencySymbol()}${result.total.toLocaleString()} from ${result.count} paydays for ${result.jobName || 'your steady income'}.`
-                    : `Auto-logged ${getCurrencySymbol()}${result.total.toLocaleString()} from ${result.jobName || 'your steady income'}.`;
-                showIncomeCongrats('Payday!', subtitle);
-            }
-        });
-
-        processSubscriptionPayments().then((result) => {
-            loadSemesterSummary();
-            loadDailySpendCard(true);
-            loadGoalCard();
-
-            if (result && result.count > 0) {
-                const namesList = [...new Set(result.names)].join(', ');
-                const subtitle = result.count > 1
-                    ? `${getCurrencySymbol()}${result.total.toLocaleString()} was auto-charged from your surplus for ${namesList}.`
-                    : `${getCurrencySymbol()}${result.total.toLocaleString()} was auto-charged from your surplus for ${namesList}.`;
-                showIncomeCongrats('Subscription Charged', subtitle);
-            }
-        });
-
-        function openSidebar() {
-            sidebar.classList.add('open');
-            sidebarOverlay.classList.add('visible');
+        function toggleSidebar(open) {
+            sidebar.classList.toggle('open', open);
+            sidebarOverlay.classList.toggle('visible', open);
         }
 
-        function closeSidebar() {
-            sidebar.classList.remove('open');
-            sidebarOverlay.classList.remove('visible');
-        }
+        $('hamburgerBtn').addEventListener('click', () => toggleSidebar(true));
+        $('closeSidebarBtn').addEventListener('click', () => toggleSidebar(false));
+        sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
 
-        hamburgerBtn.addEventListener('click', openSidebar);
-        closeSidebarBtn.addEventListener('click', closeSidebar);
-        sidebarOverlay.addEventListener('click', closeSidebar);
-
-        signOutBtn.addEventListener('click', async () => {
+        $('signOutBtn').addEventListener('click', async () => {
             await window.electronAPI.signOut();
             window.electronAPI.changePage('login.html');
+        });
+
+        setupPurchaseUI({ refresh: refreshAll, onLogged: playPurchaseLoggedSound });
+
+        Promise.all([processSteadyIncomePaydays(), processSubscriptionPayments()]).then(([payday, subscriptions]) => {
+            refreshAll();
+
+            const messages = [];
+            if (payday.count > 0) {
+                const total = getCurrencySymbol() + payday.total.toLocaleString();
+                const source = payday.jobName || 'your steady income';
+                messages.push(payday.count > 1
+                    ? `Auto-logged ${total} from ${payday.count} paydays for ${source}.`
+                    : `Auto-logged ${total} from ${source}.`);
+            }
+            if (subscriptions.count > 0) {
+                const names = [...new Set(subscriptions.names)].join(', ');
+                messages.push(`${getCurrencySymbol()}${subscriptions.total.toLocaleString()} was auto-charged from your surplus for ${names}.`);
+            }
+            if (messages.length) showIncomeCongrats(payday.count > 0 ? 'Payday!' : 'Subscription Charged', messages.join(' '));
         });
     </script>
 </body>

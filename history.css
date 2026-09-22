@@ -685,6 +685,54 @@ h1 {
     display: inline-flex;
 }
 
+.tag-add-btn {
+    border-style: dashed;
+    color: #71717a;
+}
+
+.tag-add-btn:hover {
+    border-color: #6366f1;
+    color: white;
+}
+
+.tag-add-wrap {
+    align-items: center;
+    gap: 6px;
+}
+
+.tag-add-input {
+    background-color: #26262b;
+    border: 1px solid #6366f1;
+    color: white;
+    font-size: 13px;
+    font-family: inherit;
+    border-radius: 6px;
+    padding: 7px 10px;
+    width: 130px;
+}
+
+.tag-add-input:focus {
+    outline: none;
+}
+
+.tag-add-confirm {
+    background-color: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+    padding: 0;
+}
+
+.tag-add-confirm:hover {
+    background-color: #4f46e5;
+}
+
 .tag-delete-x {
     position: absolute;
     top: -6px;
@@ -799,12 +847,6 @@ h1 {
 
 .afford-check-btn:active {
     transform: translateY(0);
-}
-
-.afford-check-btn:disabled {
-    background-color: #3f3f46;
-    opacity: 0.6;
-    cursor: not-allowed;
 }
 
 .afford-result {

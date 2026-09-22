@@ -1,12 +1,10 @@
 const DEFAULT_CATEGORIES = [
     { name: 'Food', color: '#f59e0b' },
-    { name: 'Transit', color: '#0ea5e9' },
-    { name: 'Educational', color: '#eab308' },
-    { name: 'Extracurriculars', color: '#ec4899' },
     { name: 'Fun', color: '#a855f7' },
     { name: 'Necessity', color: '#3b82f6' },
     { name: 'Other', color: '#6b7280' }
 ];
+const NEW_TAG_PALETTE = ['#0ea5e9', '#eab308', '#ec4899', '#10b981', '#f97316', '#8b5cf6', '#14b8a6', '#ef4444'];
 const SPECIAL_TAG_COLORS = {
     'Debt Payment': '#ef4444',
     'Goal Purchase': '#6366f1',
@@ -132,6 +130,7 @@ function hideUndoToast() {
 
 function createTagPicker(container, defaults, storageKey, onChange) {
     let selected = '';
+    let adding = false;
 
     async function render(wanted) {
         const custom = await loadList(storageKey);
@@ -147,12 +146,47 @@ function createTagPicker(container, defaults, storageKey, onChange) {
 
         const defaultNames = new Set(defaults.map((c) => c.name));
         const customNames = new Set(custom.map((c) => c.name));
-        container.innerHTML = categories.map((cat) => `
+        const tagsHtml = categories.map((cat) => `
             <div class="tag-btn-wrap">
                 <button type="button" class="tag-btn${cat.name === selected ? ' selected' : ''}" data-tag="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</button>
                 ${customNames.has(cat.name) && !defaultNames.has(cat.name) ? `<span class="tag-delete-x" data-tag="${escapeHtml(cat.name)}" title="Delete category">✕</span>` : ''}
             </div>
         `).join('');
+
+        const addHtml = adding
+            ? `<div class="tag-btn-wrap tag-add-wrap">
+                   <input type="text" class="tag-add-input" maxlength="24" placeholder="New category">
+                   <button type="button" class="tag-add-confirm" title="Add">✓</button>
+               </div>`
+            : `<button type="button" class="tag-btn tag-add-btn" title="Add a new category">+ Add</button>`;
+
+        container.innerHTML = tagsHtml + addHtml;
+
+        if (adding) container.querySelector('.tag-add-input').focus();
+    }
+
+    async function commitNewTag() {
+        const input = container.querySelector('.tag-add-input');
+        const name = input ? input.value.trim() : '';
+        adding = false;
+
+        if (!name) {
+            await render(selected);
+            return;
+        }
+
+        const custom = await loadList(storageKey);
+        const isDuplicate = [...defaults, ...custom].some((c) => c.name.toLowerCase() === name.toLowerCase());
+        if (isDuplicate) {
+            await render(name);
+            return;
+        }
+
+        const color = NEW_TAG_PALETTE[custom.length % NEW_TAG_PALETTE.length];
+        custom.push({ name, color });
+        await saveList(storageKey, custom);
+        await render(name);
+        onChange();
     }
 
     container.addEventListener('click', async (e) => {
@@ -176,11 +210,38 @@ function createTagPicker(container, defaults, storageKey, onChange) {
             return;
         }
 
-        const tagBtn = e.target.closest('.tag-btn');
+        if (e.target.closest('.tag-add-btn')) {
+            adding = true;
+            await render(selected);
+            return;
+        }
+
+        if (e.target.closest('.tag-add-confirm')) {
+            await commitNewTag();
+            return;
+        }
+
+        const tagBtn = e.target.closest('.tag-btn:not(.tag-add-btn)');
         if (tagBtn) {
             selected = tagBtn.dataset.tag;
             container.querySelectorAll('.tag-btn').forEach((b) => b.classList.toggle('selected', b === tagBtn));
         }
+    });
+
+    container.addEventListener('keydown', (e) => {
+        if (!e.target.classList.contains('tag-add-input')) return;
+        if (e.key === 'Enter') { e.preventDefault(); commitNewTag(); }
+        if (e.key === 'Escape') { adding = false; render(selected); }
+    });
+
+    container.addEventListener('focusout', (e) => {
+        if (!e.target.classList.contains('tag-add-input')) return;
+        setTimeout(() => {
+            if (adding && !container.contains(document.activeElement)) {
+                adding = false;
+                render(selected);
+            }
+        }, 150);
     });
 
     return { render, get selected() { return selected; } };

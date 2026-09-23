@@ -739,7 +739,8 @@
 
         function getAdjacentStep(current, direction) {
             let next = current + direction;
-            if (next === 4 && state.noFixedBudget) {
+            const noFixedBudget = document.getElementById('nofixedbudgettoggle').checked;
+            if (next === 4 && noFixedBudget) {
                 next += direction;
             }
             return next;

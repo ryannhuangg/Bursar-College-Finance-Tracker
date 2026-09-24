@@ -202,6 +202,9 @@
         let lastDeletedCategory = null;
         let lastDeletedCategoryIndex = -1;
         let lastDeletedSteadyIncome = null;
+        let addingCategory = false;
+
+        const NEW_TAG_PALETTE = ['#0ea5e9', '#eab308', '#ec4899', '#10b981', '#f97316', '#8b5cf6', '#14b8a6', '#ef4444'];
 
         const hamburgerBtn = document.getElementById('hamburgerBtn');
         const closeSidebarBtn = document.getElementById('closeSidebarBtn');
@@ -213,8 +216,6 @@
             { name: 'Job/Wages', color: '#4ade80' },
             { name: 'Financial Aid', color: '#0ea5e9' },
             { name: 'Parent Contribution', color: '#a855f7' },
-            { name: 'Gift', color: '#ec4899' },
-            { name: 'Refund', color: '#eab308' },
             { name: 'Other', color: '#6b7280' }
         ];
 
@@ -844,7 +845,7 @@
                 selectedTag = sortedCategories.length > 0 ? sortedCategories[0].name : '';
             }
 
-            incomeTagsContainer.innerHTML = sortedCategories.map(cat => {
+            const tagsHtml = sortedCategories.map(cat => {
                 const isDefault = DEFAULT_CATEGORIES.some(d => d.name === cat.name);
                 const isSelected = cat.name === selectedTag ? ' selected' : '';
                 return `
@@ -855,7 +856,18 @@
                 `;
             }).join('');
 
-            incomeTagsContainer.querySelectorAll('.tag-btn').forEach(btn => {
+            const addHtml = addingCategory
+                ? `<div class="tag-btn-wrap tag-add-wrap">
+                       <input type="text" class="tag-add-input" maxlength="24" placeholder="New category">
+                       <button type="button" class="tag-add-confirm" title="Add">✓</button>
+                   </div>`
+                : `<button type="button" class="tag-btn tag-add-btn" title="Add a new category">+ Add</button>`;
+
+            incomeTagsContainer.innerHTML = tagsHtml + addHtml;
+
+            if (addingCategory) incomeTagsContainer.querySelector('.tag-add-input').focus();
+
+            incomeTagsContainer.querySelectorAll('.tag-btn:not(.tag-add-btn)').forEach(btn => {
                 btn.addEventListener('click', () => {
                     incomeTagsContainer.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
@@ -882,10 +894,66 @@
                     showUndoToast('category');
                 });
             });
+
+            const addBtn = incomeTagsContainer.querySelector('.tag-add-btn');
+            if (addBtn) {
+                addBtn.addEventListener('click', async () => {
+                    addingCategory = true;
+                    await renderCategoryTags(true);
+                });
+            }
+
+            const addConfirmBtn = incomeTagsContainer.querySelector('.tag-add-confirm');
+            if (addConfirmBtn) {
+                addConfirmBtn.addEventListener('click', () => commitNewCategory());
+            }
+
+            const addInput = incomeTagsContainer.querySelector('.tag-add-input');
+            if (addInput) {
+                addInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitNewCategory(); }
+                    if (e.key === 'Escape') { addingCategory = false; renderCategoryTags(true); }
+                });
+                addInput.addEventListener('focusout', () => {
+                    setTimeout(() => {
+                        if (addingCategory && !incomeTagsContainer.contains(document.activeElement)) {
+                            addingCategory = false;
+                            renderCategoryTags(true);
+                        }
+                    }, 150);
+                });
+            }
+        }
+
+        async function commitNewCategory() {
+            const input = document.querySelector('#incomeTags .tag-add-input');
+            const name = input ? input.value.trim() : '';
+            addingCategory = false;
+
+            if (!name) {
+                await renderCategoryTags(true);
+                return;
+            }
+
+            const customCategories = await loadCustomCategories();
+            const isDuplicate = [...DEFAULT_CATEGORIES, ...customCategories].some(c => c.name.toLowerCase() === name.toLowerCase());
+            if (isDuplicate) {
+                selectedTag = name;
+                await renderCategoryTags(true);
+                return;
+            }
+
+            const color = NEW_TAG_PALETTE[customCategories.length % NEW_TAG_PALETTE.length];
+            customCategories.push({ name, color });
+            await saveCustomCategories(customCategories);
+
+            selectedTag = name;
+            await renderCategoryTags(true);
         }
 
         async function openIncomeModal(entry = null) {
             editingIncomeId = entry ? entry.id : null;
+            addingCategory = false;
 
             incomeError.innerText = '';
 

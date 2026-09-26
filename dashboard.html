@@ -326,6 +326,11 @@
             </div>
         `;
 
+        function formatShortDate(dateString) {
+            const d = new Date(dateString + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
         function setSpendTab(tab) {
             currentSpendTab = tab;
             loadDailySpendCard();
@@ -540,6 +545,7 @@
 
                 return `
                     <tr>
+                        <td style="white-space: nowrap; color: #a1a1aa;">${formatShortDate(p.date)}</td>
                         <td style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}${isSurplusFunded(p) ? ' <span class="surplus-badge">Surplus</span>' : ''}</td>
                         <td>${costDisplay}</td>
                         <td>
@@ -560,6 +566,7 @@
 
             const incomeRows = [...incomeEntries].reverse().map((entry) => `
                 <tr>
+                    <td style="white-space: nowrap; color: #a1a1aa;">${formatShortDate(entry.date)}</td>
                     <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(entry.description)}">${escapeHtml(entry.description)}</td>
                     <td>
                         <div class="recent-tag-badge">
@@ -578,8 +585,8 @@
             `).join('');
 
             const recentHTML = currentRecentTab === 'income'
-                ? (incomeEntries.length ? recentTable(['Description', 'Source', 'Amount'], incomeRows) : `<div class="empty-recent">No income logged yet.</div>`)
-                : (displayPurchases.length ? recentTable(['Description', 'Cost', 'Category'], purchaseRows) : `<div class="empty-recent">${tab.empty}</div>`);
+                ? (incomeEntries.length ? recentTable(['Date', 'Description', 'Source', 'Amount'], incomeRows) : `<div class="empty-recent">No income logged yet.</div>`)
+                : (displayPurchases.length ? recentTable(['Date', 'Description', 'Cost', 'Category'], purchaseRows) : `<div class="empty-recent">${tab.empty}</div>`);
 
             const pieTotal = Math.max(timeframeLimit || 0, timeframeSpent) || 1;
             const pieChartHTML = timeframePurchases.length === 0

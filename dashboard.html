@@ -1091,7 +1091,7 @@
             submitIncomeBtn.disabled = false;
             closeIncomeModal();
             refreshAll();
-            showIncomeCongrats();
+            showIncomeCongrats(id ? 'Changes Saved!' : undefined, undefined, !id);
         });
 
         saveSteadyIncomeBtn.addEventListener('click', async () => {
@@ -1126,7 +1126,7 @@
             saveSteadyIncomeBtn.innerText = 'Save Steady Income';
             closeIncomeModal();
             refreshAll();
-            showIncomeCongrats();
+            showIncomeCongrats('Steady Income Saved!', undefined, false);
         });
 
         deleteSteadyIncomeBtn.addEventListener('click', async () => {
@@ -1185,7 +1185,7 @@
             </div>
         `;
 
-        async function showIncomeCongrats(customTitle, customSubtitle) {
+        async function showIncomeCongrats(customTitle, customSubtitle, celebrate = true) {
             const stats = await getFinancialStats();
             if (!stats) return;
 
@@ -1201,8 +1201,10 @@
                 : limitBox(formatWhole(roundedWeekday), 'Daily Limit');
 
             congratsModalOverlay.classList.add('visible');
-            launchConfetti();
-            playFanfareSound();
+            if (celebrate) {
+                launchConfetti();
+                playFanfareSound();
+            }
         }
 
         function showGoalPurchaseCongrats(goal) {
@@ -1240,53 +1242,6 @@
 
             setTimeout(() => container.remove(), 4500);
         }
-
-        let audioCtx = null;
-
-        function getAudioCtx() {
-            audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            return audioCtx;
-        }
-
-        document.addEventListener('click', getAudioCtx, { once: true });
-
-        function playBrassNote(ctx, freq, startTime, length, peakGain) {
-            const filter = ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 2200;
-            filter.Q.value = 0.7;
-
-            const gainNode = ctx.createGain();
-            filter.connect(gainNode);
-            gainNode.connect(ctx.destination);
-
-            [-4, 4].forEach((detuneCents) => {
-                const osc = ctx.createOscillator();
-                osc.type = 'sawtooth';
-                osc.frequency.value = freq;
-                osc.detune.value = detuneCents;
-                osc.connect(filter);
-                osc.start(startTime);
-                osc.stop(startTime + length + 0.05);
-            });
-
-            gainNode.gain.setValueAtTime(0.0001, startTime);
-            gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.03);
-            gainNode.gain.setValueAtTime(peakGain, startTime + length * 0.45);
-            gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
-        }
-
-        function playNotes(notes) {
-            if (localStorage.getItem('soundsMuted') === 'true') return;
-            try {
-                const ctx = getAudioCtx();
-                notes.forEach(([freq, start, length, gain]) => playBrassNote(ctx, freq, ctx.currentTime + start, length, gain));
-            } catch {}
-        }
-
-        const playFanfareSound = () => playNotes([[392.00, 0, 0.16, 0.16], [523.25, 0.18, 0.16, 0.16], [659.25, 0.36, 0.5, 0.20]]);
-        const playPurchaseLoggedSound = () => playNotes([[493.88, 0, 0.12, 0.10]]);
 
         const affordModalOverlay = $('affordModalOverlay');
         const affordAmountInput = $('affordAmount');
@@ -1401,7 +1356,7 @@
                 const names = [...new Set(subscriptions.names)].join(', ');
                 messages.push(`${getCurrencySymbol()}${subscriptions.total.toLocaleString()} was auto-charged from your surplus for ${names}.`);
             }
-            if (messages.length) showIncomeCongrats(payday.count > 0 ? 'Payday!' : 'Subscription Charged', messages.join(' '));
+            if (messages.length) showIncomeCongrats(payday.count > 0 ? 'Payday!' : 'Subscription Charged', messages.join(' '), payday.count > 0);
         });
     </script>
 </body>

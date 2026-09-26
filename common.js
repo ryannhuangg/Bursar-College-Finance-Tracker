@@ -39,6 +39,80 @@ function getLocalISO(d) {
     return local.toISOString().split('T')[0];
 }
 
+let audioCtx = null;
+
+function getAudioCtx() {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+}
+
+document.addEventListener('click', getAudioCtx, { once: true });
+
+function playBrassNote(ctx, freq, startTime, length, peakGain) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 2200;
+    filter.Q.value = 0.7;
+
+    const gainNode = ctx.createGain();
+    filter.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    [-4, 4].forEach((detuneCents) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        osc.detune.value = detuneCents;
+        osc.connect(filter);
+        osc.start(startTime);
+        osc.stop(startTime + length + 0.05);
+    });
+
+    gainNode.gain.setValueAtTime(0.0001, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.03);
+    gainNode.gain.setValueAtTime(peakGain, startTime + length * 0.45);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
+}
+
+function playChimeNote(ctx, freq, startTime, length, peakGain) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    const gainNode = ctx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    osc.start(startTime);
+    osc.stop(startTime + length + 0.05);
+
+    gainNode.gain.setValueAtTime(0.0001, startTime);
+    gainNode.gain.linearRampToValueAtTime(peakGain, startTime + 0.015);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + length);
+}
+
+function playNotes(notes) {
+    if (localStorage.getItem('soundsMuted') === 'true') return;
+    try {
+        const ctx = getAudioCtx();
+        notes.forEach(([freq, start, length, gain]) => playBrassNote(ctx, freq, ctx.currentTime + start, length, gain));
+    } catch {}
+}
+
+function playFanfareSound() {
+    playNotes([[392.00, 0, 0.16, 0.16], [523.25, 0.18, 0.16, 0.16], [659.25, 0.36, 0.5, 0.20]]);
+}
+
+function playPurchaseLoggedSound() {
+    if (localStorage.getItem('soundsMuted') === 'true') return;
+    try {
+        const ctx = getAudioCtx();
+        playChimeNote(ctx, 440.00, ctx.currentTime, 0.11, 0.22);
+        playChimeNote(ctx, 659.25, ctx.currentTime + 0.08, 0.16, 0.22);
+    } catch {}
+}
+
 function todayISO() {
     return getLocalISO(new Date());
 }
@@ -116,6 +190,7 @@ function pieSvg(slices, total, stroke) {
 function showUndoToast(message, action) {
     const toast = document.getElementById('undoToast');
     toast.querySelector('span').innerText = message;
+    toast.querySelector('#undoBtn').style.display = action ? '' : 'none';
     toast.classList.add('visible');
     undoAction = action;
     clearTimeout(undoTimer);

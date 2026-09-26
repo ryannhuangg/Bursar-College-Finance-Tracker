@@ -641,7 +641,7 @@
         const congratsLimits = document.getElementById('congratsLimits');
         const congratsModalOverlay = document.getElementById('congratsModalOverlay');
 
-        async function showCongratsModal(customTitle, customSubtitle) {
+        async function showCongratsModal(customTitle, customSubtitle, celebrate = true) {
             const stats = await getFinancialStats();
             if (!stats) return;
 
@@ -672,8 +672,10 @@
             }
 
             congratsModalOverlay.classList.add('visible');
-            fireConfetti();
-            playFanfareSound();
+            if (celebrate) {
+                fireConfetti();
+                playFanfareSound();
+            }
         }
 
         document.getElementById('closeCongratsBtn').addEventListener('click', () => {
@@ -1067,7 +1069,7 @@
             if (!isEditing) {
                 showCongratsModal('Income Logged!', `Successfully added ${formatCurrency(amount)} to your history.`);
             } else {
-                showCongratsModal('Changes Saved!', `Your income entry has been successfully updated.`);
+                showCongratsModal('Changes Saved!', `Your income entry has been successfully updated.`, false);
             }
         });
 

@@ -317,7 +317,7 @@
             window.electronAPI.changePage('login.html');
         });
 
-        setupPurchaseUI({ refresh: renderHistoryView });
+        setupPurchaseUI({ refresh: renderHistoryView, onLogged: playPurchaseLoggedSound });
         processSubscriptionPayments().finally(renderHistoryView);
     </script>
 </body>

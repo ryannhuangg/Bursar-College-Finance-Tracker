@@ -376,8 +376,9 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
     const titleText = byId('purchaseModalTitleText');
     const amountInput = byId('purchaseAmount');
     const descriptionInput = byId('purchaseDescription');
+    const dateInput = byId('purchaseDate');
+    const fundSourceField = byId('fundSourceField');
     const fundSourceGroup = byId('fundSourceGroup');
-    const surplusBtn = fundSourceGroup.querySelector('[data-source="surplus"]');
     const fundSourceNote = byId('fundSourceNote');
     const splitToggle = byId('purchaseSplitToggle');
     const reimbursementField = byId('reimbursementField');
@@ -427,13 +428,10 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
     async function refreshFundSourceInfo() {
         const stats = await getFinancialStats();
         const noBudget = !!stats?.data.noFixedBudget;
-        surplusBtn.disabled = noBudget;
-        surplusBtn.title = noBudget ? 'Not available without a fixed budget' : '';
+        fundSourceField.style.display = noBudget ? 'none' : 'block';
 
-        if (!stats || stats.isBreak) {
+        if (!stats || stats.isBreak || noBudget) {
             fundSourceNote.innerText = '';
-        } else if (noBudget) {
-            fundSourceNote.innerText = "You don't have a fixed budget. Surplus funding doesn't apply.";
         } else if (stats.isSurplus) {
             fundSourceNote.innerText = `You currently have ${formatWhole(stats.surplusDeficit)} in surplus available.`;
         } else {
@@ -461,6 +459,8 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
         submitBtn.innerText = purchase ? 'Save Changes' : 'Log Purchase';
         amountInput.value = purchase ? purchase.amount : '';
         descriptionInput.value = purchase ? purchase.description : '';
+        dateInput.value = purchase ? purchase.date : todayISO();
+        dateInput.max = todayISO();
         setSplit(!!purchase?.reimbursement, purchase?.reimbursement);
         setFundSource(purchase?.fromSurplus ? 'surplus' : 'daily');
         resetSubscriptionForm();
@@ -538,12 +538,15 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
     submitBtn.addEventListener('click', async () => {
         const amount = Number(amountInput.value);
         const description = descriptionInput.value.trim();
+        const date = dateInput.value;
         const isSplit = splitToggle.checked;
         const reimbursement = isSplit ? Number(reimbursementInput.value) : 0;
         const symbol = getCurrencySymbol();
 
         const error = !(amount > 0) ? `Enter an amount greater than ${symbol}0.`
             : !description ? 'Add a short description.'
+            : !date ? 'Pick a date.'
+            : date > todayISO() ? 'Date cannot be in the future.'
             : isSplit && !(reimbursement > 0 && reimbursement < amount) ? `Reimbursement must be greater than ${symbol}0 and less than total amount.`
             : '';
         purchaseError.innerText = error;
@@ -559,7 +562,7 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
         if (id) {
             const existing = purchases.find((p) => p.id === id);
             if (existing) {
-                Object.assign(existing, { amount, description, tag: tagPicker.selected, fromSurplus });
+                Object.assign(existing, { amount, description, date, tag: tagPicker.selected, fromSurplus });
                 delete existing.liabilityId;
                 if (isSplit) {
                     if (!existing.reimbursement) existing.reimbursementSettled = false;
@@ -575,7 +578,7 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
                 amount,
                 description,
                 tag: tagPicker.selected,
-                date: todayISO(),
+                date,
                 reimbursement: reimbursement || undefined,
                 reimbursementSettled: false,
                 fromSurplus
@@ -647,11 +650,16 @@ document.body.insertAdjacentHTML('beforeend', `
                 </div>
 
                 <div class="field">
+                    <label for="purchaseDate">Date</label>
+                    <input type="date" id="purchaseDate">
+                </div>
+
+                <div class="field">
                     <label>Category</label>
                     <div class="tag-group" id="purchaseTags"></div>
                 </div>
 
-                <div class="field">
+                <div class="field" id="fundSourceField">
                     <label>Fund This With</label>
                     <div class="tag-group" id="fundSourceGroup">
                         <button type="button" class="tag-btn selected" data-source="daily">Daily Budget</button>

@@ -116,6 +116,11 @@
                 </div>
 
                 <div class="field">
+                    <label for="incomeDate">Date</label>
+                    <input type="date" id="incomeDate">
+                </div>
+
+                <div class="field">
                     <label>Source</label>
                     <div class="tag-group" id="incomeTags"></div>
                 </div>
@@ -391,9 +396,9 @@
                 } else if (currentTab === 'daily') {
                     return iDate.toDateString() === today.toDateString();
                 } else if (currentTab === 'weekly') {
-                    const sevenDaysAgo = new Date(today);
-                    sevenDaysAgo.setDate(today.getDate() - 7);
-                    return iDate >= sevenDaysAgo && iDate <= today;
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay());
+                    return iDate >= weekStart && iDate <= today;
                 } else if (currentTab === 'monthly') {
                     return iDate.getMonth() === today.getMonth() && iDate.getFullYear() === today.getFullYear();
                 }
@@ -739,6 +744,7 @@
         const submitIncomeBtn = document.getElementById('submitIncomeBtn');
         const incomeAmountInput = document.getElementById('incomeAmount');
         const incomeDescriptionInput = document.getElementById('incomeDescription');
+        const incomeDateInput = document.getElementById('incomeDate');
         const incomeError = document.getElementById('incomeError');
         const steadyJobNameInput = document.getElementById('steadyJobName');
         const steadyPayAmountInput = document.getElementById('steadyPayAmount');
@@ -965,6 +971,7 @@
 
                 incomeAmountInput.value = entry.amount;
                 incomeDescriptionInput.value = entry.description || '';
+                incomeDateInput.value = entry.date || todayISO();
 
                 selectedTag = entry.tag;
                 await renderCategoryTags(true);
@@ -974,9 +981,12 @@
 
                 incomeAmountInput.value = '';
                 incomeDescriptionInput.value = '';
+                incomeDateInput.value = todayISO();
 
                 await renderCategoryTags(false);
             }
+
+            incomeDateInput.max = todayISO();
 
             const steady = await loadSteadyIncome();
             steadyIncomeError.innerText = '';
@@ -1004,6 +1014,7 @@
         submitIncomeBtn.addEventListener('click', async () => {
             const amount = Number(incomeAmountInput.value);
             const description = incomeDescriptionInput.value.trim();
+            const date = incomeDateInput.value;
 
             if (!amount || amount <= 0) {
                 incomeError.innerText = `Enter an amount greater than ${getCurrencySymbol()}0.`;
@@ -1011,6 +1022,14 @@
             }
             if (!description) {
                 incomeError.innerText = 'Add a short description.';
+                return;
+            }
+            if (!date) {
+                incomeError.innerText = 'Pick a date.';
+                return;
+            }
+            if (date > todayISO()) {
+                incomeError.innerText = 'Date cannot be in the future.';
                 return;
             }
 
@@ -1027,6 +1046,7 @@
                     existing.amount = amount;
                     existing.description = description;
                     existing.tag = selectedTag;
+                    existing.date = date;
                 }
             } else {
                 income.push({
@@ -1034,7 +1054,7 @@
                     amount,
                     description,
                     tag: selectedTag,
-                    date: todayISO()
+                    date
                 });
             }
             await saveIncome(income);

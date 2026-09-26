@@ -145,8 +145,9 @@
 
         function filterPurchases(purchases) {
             const today = todayISO();
-            const weekStart = new Date();
-            weekStart.setDate(weekStart.getDate() - 6);
+            const now = new Date();
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay());
             const weekStartISO = getLocalISO(weekStart);
 
             return purchases.filter((p) => {

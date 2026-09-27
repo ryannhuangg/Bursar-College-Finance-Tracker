@@ -435,13 +435,19 @@ async function computeFinancialStats() {
 
     const surplusDeficit = expectedSpendToDate - totalSpentBeforeToday - totalSpentOnGoals;
 
+    const semesterIncome = incomeEntries.filter((e) => e.date >= data.startDate && e.date <= data.endDate);
+    const incomeLoggedTotal = semesterIncome.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const totalSpentAllSources = totalSpent + totalSpentOnGoals;
+
     return {
         data, purchases, incomeEntries, todayStr, isBeforeStart, isBreak, daysRemaining,
         netRemaining, totalSpent, totalPendingReimbursements, currentNetRunway, runwayRemainingPercent,
         weightFactor, roundedWeekday, roundedWeekend, dayLimit,
         dailySafeSpend: data.noFixedBudget ? null : dayLimit(now),
         surplusDeficit,
-        isSurplus: surplusDeficit >= 0
+        isSurplus: surplusDeficit >= 0,
+        incomeLoggedTotal,
+        totalSpentAllSources
     };
 }
 

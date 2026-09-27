@@ -364,10 +364,11 @@
 
         function getWeekRange() {
             const d = new Date();
+            const dayOffset = (d.getDay() + 6) % 7;
             const start = new Date(d);
-            start.setDate(d.getDate() - d.getDay());
+            start.setDate(d.getDate() - dayOffset);
             const end = new Date(d);
-            end.setDate(d.getDate() + (6 - d.getDay()));
+            end.setDate(d.getDate() + (6 - dayOffset));
             return { start: getLocalISO(start), end: getLocalISO(end) };
         }
 
@@ -448,7 +449,7 @@
                 return;
             }
 
-            const { data, todayStr, dailySafeSpend, daysRemaining, netRemaining, currentNetRunway, runwayRemainingPercent, surplusDeficit, isSurplus, totalPendingReimbursements } = stats;
+            const { data, todayStr, dailySafeSpend, daysRemaining, netRemaining, currentNetRunway, runwayRemainingPercent, surplusDeficit, isSurplus, totalPendingReimbursements, incomeLoggedTotal, totalSpentAllSources } = stats;
             const noBudget = data.noFixedBudget;
             const editBtn = `<button class="semester-edit-btn" onclick="window.electronAPI.changePage('setup.html')">Edit</button>`;
             const pendingStat = (amount) => stat(formatWhole(amount), 'Pending Money', '#6366f1');
@@ -478,11 +479,11 @@
             container.innerHTML = `
                 ${semesterHeader('Your Semester', editBtn)}
                 <div class="semester-stats">
-                    ${stat(noBudget ? 'N/A' : formatWhole(dailySafeSpend), "Today's Limit", limitColor)}
-                    ${stat(noBudget ? 'N/A' : formatWhole(netRemaining), 'Total Runway')}
-                    ${stat(noBudget ? 'N/A' : formatWhole(currentNetRunway), 'Net Runway')}
+                    ${noBudget ? '' : stat(formatWhole(dailySafeSpend), "Today's Limit", limitColor)}
+                    ${stat(noBudget ? formatWhole(incomeLoggedTotal) : formatWhole(netRemaining), noBudget ? 'Income Logged' : 'Total Runway')}
+                    ${stat(noBudget ? formatWhole(totalSpentAllSources) : formatWhole(currentNetRunway), noBudget ? 'Total Spent' : 'Net Runway')}
                     ${stat(daysRemaining, 'Days Left')}
-                    ${stat(noBudget ? 'N/A' : formatWhole(Math.abs(surplusDeficit)), noBudget || isSurplus ? 'Surplus' : 'Deficit', surplusColor)}
+                    ${noBudget ? '' : stat(formatWhole(Math.abs(surplusDeficit)), isSurplus ? 'Surplus' : 'Deficit', surplusColor)}
                     ${pendingStat(totalPendingReimbursements)}
                 </div>
                 ${noBudget ? '' : `
@@ -1189,16 +1190,22 @@
             const stats = await getFinancialStats();
             if (!stats) return;
 
-            const { roundedWeekday, roundedWeekend, weightFactor } = stats;
+            const { roundedWeekday, roundedWeekend, weightFactor, data, incomeLoggedTotal, totalSpentAllSources } = stats;
             const hasWeekendLimit = weightFactor !== 1;
 
             $('congratsTitle').innerText = customTitle || 'Congratulations!';
-            $('congratsSubtitle').innerText = customSubtitle || (hasWeekendLimit
-                ? 'Your income has been logged. Here are your updated safe-spend limits:'
-                : "Your income has been logged. Here's your updated daily safe-spend limit:");
-            $('congratsLimits').innerHTML = hasWeekendLimit
-                ? limitBox(formatWhole(roundedWeekday), 'Weekday Limit') + limitBox(formatWhole(roundedWeekend), 'Weekend Limit')
-                : limitBox(formatWhole(roundedWeekday), 'Daily Limit');
+
+            if (data.noFixedBudget) {
+                $('congratsSubtitle').innerText = customSubtitle || "Your income has been logged. Here's where things stand this semester:";
+                $('congratsLimits').innerHTML = limitBox(formatWhole(incomeLoggedTotal), 'Income Logged') + limitBox(formatWhole(totalSpentAllSources), 'Total Spent');
+            } else {
+                $('congratsSubtitle').innerText = customSubtitle || (hasWeekendLimit
+                    ? 'Your income has been logged. Here are your updated safe-spend limits:'
+                    : "Your income has been logged. Here's your updated daily safe-spend limit:");
+                $('congratsLimits').innerHTML = hasWeekendLimit
+                    ? limitBox(formatWhole(roundedWeekday), 'Weekday Limit') + limitBox(formatWhole(roundedWeekend), 'Weekend Limit')
+                    : limitBox(formatWhole(roundedWeekday), 'Daily Limit');
+            }
 
             congratsModalOverlay.classList.add('visible');
             if (celebrate) {

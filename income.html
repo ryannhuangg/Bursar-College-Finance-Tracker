@@ -356,7 +356,7 @@
                 days, weeks, months, totalIn, totalOut, netRemaining, totalSpent,
                 daysRemaining, dailySafeSpend, currentNetRunway, runwayRemainingPercent,
                 surplusDeficit, isSurplus, totalPendingReimbursements, roundedWeekday, roundedWeekend, weightFactor,
-                incomeEntries, totalIncomeLogged
+                incomeEntries, totalIncomeLogged, totalSpentAllSources: totalSpent + totalSpentOnGoals
             };
         }
 
@@ -397,7 +397,7 @@
                     return iDate.toDateString() === today.toDateString();
                 } else if (currentTab === 'weekly') {
                     const weekStart = new Date(today);
-                    weekStart.setDate(today.getDate() - today.getDay());
+                    weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
                     return iDate >= weekStart && iDate <= today;
                 } else if (currentTab === 'monthly') {
                     return iDate.getMonth() === today.getMonth() && iDate.getFullYear() === today.getFullYear();
@@ -645,11 +645,23 @@
             const stats = await getFinancialStats();
             if (!stats) return;
 
-            const { roundedWeekday, roundedWeekend, weightFactor } = stats;
+            const { roundedWeekday, roundedWeekend, weightFactor, data, totalIncomeLogged, totalSpentAllSources } = stats;
 
             congratsTitleText.innerText = customTitle || 'Congratulations!';
 
-            if (weightFactor !== 1) {
+            if (data.noFixedBudget) {
+                congratsSubtitleText.innerText = customSubtitle || "Your income has been logged. Here's where things stand this semester:";
+                congratsLimits.innerHTML = `
+                    <div class="congrats-limit-box">
+                        <span class="congrats-limit-value">${getCurrencySymbol()}${Math.round(totalIncomeLogged).toLocaleString()}</span>
+                        <span class="congrats-limit-label">Income Logged</span>
+                    </div>
+                    <div class="congrats-limit-box">
+                        <span class="congrats-limit-value">${getCurrencySymbol()}${Math.round(totalSpentAllSources).toLocaleString()}</span>
+                        <span class="congrats-limit-label">Total Spent</span>
+                    </div>
+                `;
+            } else if (weightFactor !== 1) {
                 congratsSubtitleText.innerText = customSubtitle || "Your income has been logged. Here are your updated safe-spend limits:";
                 congratsLimits.innerHTML = `
                     <div class="congrats-limit-box">

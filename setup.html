@@ -562,6 +562,7 @@
             state.noFixedBudget = e.target.checked;
             applyNoBudgetVisualState(state.noFixedBudget);
             updateVisual();
+            showStep(currentStep);
         });
 
         function getWeightForDate(d, weightFactor) {
@@ -719,8 +720,10 @@
         function showStep(step) {
             document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
             document.querySelector(`.wizard-step[data-step="${step}"]`).classList.add('active');
-            
-            stepIndicator.innerText = `Step ${step} of ${totalSteps}`;
+
+            const visibleSteps = getVisibleSteps();
+            const position = visibleSteps.indexOf(step) + 1;
+            stepIndicator.innerText = `Step ${position} of ${visibleSteps.length}`;
             
             if (step === 1) {
                 backBtn.style.visibility = 'hidden';
@@ -737,10 +740,25 @@
             }
         }
 
+        function isNoFixedBudget() {
+            return document.getElementById('nofixedbudgettoggle').checked;
+        }
+
+        function isStepSkipped(step) {
+            return isNoFixedBudget() && (step === 3 || step === 4);
+        }
+
+        function getVisibleSteps() {
+            const steps = [];
+            for (let s = 1; s <= totalSteps; s++) {
+                if (!isStepSkipped(s)) steps.push(s);
+            }
+            return steps;
+        }
+
         function getAdjacentStep(current, direction) {
             let next = current + direction;
-            const noFixedBudget = document.getElementById('nofixedbudgettoggle').checked;
-            if (next === 4 && noFixedBudget) {
+            while (next >= 1 && next <= totalSteps && isStepSkipped(next)) {
                 next += direction;
             }
             return next;

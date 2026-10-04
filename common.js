@@ -132,12 +132,31 @@ function calculateWeightRange(startDateObj, endDateObj, weightFactor) {
 }
 
 async function loadList(key) {
-    const response = await window.electronAPI.getUserData(key);
-    return response.success && Array.isArray(response.value) ? response.value : [];
+    try {
+        const response = await window.electronAPI.getUserData(key);
+        if (!response.success) {
+            showErrorToast(friendlyErrorMessage(response.error, 'load'));
+            return [];
+        }
+        return Array.isArray(response.value) ? response.value : [];
+    } catch (err) {
+        showErrorToast(friendlyErrorMessage(err.message, 'load'));
+        return [];
+    }
 }
 
-function saveList(key, value) {
-    return window.electronAPI.setUserData(key, value);
+async function saveList(key, value) {
+    try {
+        const response = await window.electronAPI.setUserData(key, value);
+        if (!response.success) {
+            showErrorToast(friendlyErrorMessage(response.error, 'save'));
+            return false;
+        }
+        return true;
+    } catch (err) {
+        showErrorToast(friendlyErrorMessage(err.message, 'save'));
+        return false;
+    }
 }
 
 const loadPurchases = () => loadList('purchases');
@@ -146,13 +165,15 @@ const loadSubscriptions = () => loadList('subscriptions');
 const saveSubscriptions = (subscriptions) => saveList('subscriptions', subscriptions);
 
 async function savePurchases(purchases) {
-    await saveList('purchases', purchases);
-    financialStatsCache = null;
+    const ok = await saveList('purchases', purchases);
+    if (ok) financialStatsCache = null;
+    return ok;
 }
 
 async function saveIncome(entries) {
-    await saveList('income', entries);
-    financialStatsCache = null;
+    const ok = await saveList('income', entries);
+    if (ok) financialStatsCache = null;
+    return ok;
 }
 
 async function getColorLookup(defaults, customKey, extra = {}) {
@@ -185,6 +206,36 @@ function pieSvg(slices, total, stroke) {
         return `<path d="M 0 0 L ${from} A 1 1 0 ${share > 0.5 ? 1 : 0} 1 ${point(angle)} Z" stroke="${stroke}" stroke-width="0.015" ${attrs}></path>`;
     }).join('');
     return `<svg viewBox="-1 -1 2 2" class="daily-pie-chart"><circle r="1" cx="0" cy="0" fill="#26262b"></circle>${shapes}</svg>`;
+}
+
+let errorToastTimer = null;
+
+function friendlyErrorMessage(rawMessage, action) {
+    const msg = (rawMessage || '').toLowerCase();
+    const isNetworkError = msg.includes('fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('offline') || msg === '';
+    if (isNetworkError) {
+        return action === 'save'
+            ? "Couldn't save — check your internet connection and try again."
+            : "Couldn't load your data — check your internet connection.";
+    }
+    return action === 'save'
+        ? `Couldn't save: ${rawMessage}`
+        : `Couldn't load your data: ${rawMessage}`;
+}
+
+function showErrorToast(message) {
+    const toast = document.getElementById('errorToast');
+    if (!toast) return;
+    toast.querySelector('span').innerText = message;
+    toast.classList.add('visible');
+    clearTimeout(errorToastTimer);
+    errorToastTimer = setTimeout(hideErrorToast, 6000);
+}
+
+function hideErrorToast() {
+    const toast = document.getElementById('errorToast');
+    if (toast) toast.classList.remove('visible');
+    clearTimeout(errorToastTimer);
 }
 
 function showUndoToast(message, action) {
@@ -577,8 +628,10 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
         if (index === -1) return;
 
         const [removed] = subscriptions.splice(index, 1);
-        await saveSubscriptions(subscriptions);
+        const saved = await saveSubscriptions(subscriptions);
         await renderSubscriptionList();
+        if (!saved) return;
+
         showUndoToast('Subscription removed.', async () => {
             const current = await loadSubscriptions();
             current.splice(Math.min(index, current.length), 0, removed);
@@ -606,12 +659,14 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
 
         const subscriptions = await loadSubscriptions();
         subscriptions.push({ id: newId(), name, amount, frequency: subscriptionFrequency.value, startDate, nextBillingDate: startDate });
-        await saveSubscriptions(subscriptions);
-        await processSubscriptionPayments();
+        const saved = await saveSubscriptions(subscriptions);
 
-        resetSubscriptionForm();
         saveSubscriptionBtn.disabled = false;
         saveSubscriptionBtn.innerText = 'Add Subscription';
+        if (!saved) return;
+
+        await processSubscriptionPayments();
+        resetSubscriptionForm();
         await renderSubscriptionList();
         refresh();
     });
@@ -665,9 +720,13 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
                 fromSurplus
             });
         }
-        await savePurchases(purchases);
-
+        const saved = await savePurchases(purchases);
         submitBtn.disabled = false;
+        if (!saved) {
+            submitBtn.innerText = id ? 'Save Changes' : 'Log Purchase';
+            return;
+        }
+
         closeModal();
         refresh();
         if (!id) onLogged();
@@ -685,8 +744,10 @@ function setupPurchaseUI({ refresh, onLogged = () => {} }) {
         if (btn.classList.contains('edit-purchase-btn')) return openModal(purchases[index]);
 
         const [removed] = purchases.splice(index, 1);
-        await savePurchases(purchases);
+        const saved = await savePurchases(purchases);
         refresh();
+        if (!saved) return;
+
         showUndoToast('Purchase deleted.', async () => {
             const current = await loadPurchases();
             current.splice(index, 0, removed);
@@ -815,6 +876,11 @@ document.body.insertAdjacentHTML('beforeend', `
         <button id="undoBtn">Undo</button>
     </div>
 
+    <div id="errorToast" class="error-toast">
+        <span></span>
+        <button id="errorToastCloseBtn">✕</button>
+    </div>
+
     <div id="globalTooltip" class="global-tooltip"></div>
 `);
 
@@ -827,6 +893,8 @@ document.getElementById('undoBtn').addEventListener('click', async () => {
     hideUndoToast();
     await action?.();
 });
+
+document.getElementById('errorToastCloseBtn').addEventListener('click', hideErrorToast);
 
 document.addEventListener('mousemove', (e) => {
     const tooltip = document.getElementById('globalTooltip');

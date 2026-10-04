@@ -192,6 +192,11 @@
         <button id="undoBtn">Undo</button>
     </div>
 
+    <div id="errorToast" class="error-toast">
+        <span></span>
+        <button id="errorToastCloseBtn">✕</button>
+    </div>
+
     <div id="globalTooltip" class="global-tooltip"></div>
 
     <script>
@@ -234,13 +239,41 @@
             return getLocalISO(new Date());
         }
 
+        async function loadFromStorage(key) {
+            try {
+                const response = await window.electronAPI.getUserData(key);
+                if (!response.success) {
+                    showErrorToast(friendlyErrorMessage(response.error, 'load'));
+                    return null;
+                }
+                return response.value;
+            } catch (err) {
+                showErrorToast(friendlyErrorMessage(err.message, 'load'));
+                return null;
+            }
+        }
+
+        async function saveToStorage(key, value) {
+            try {
+                const response = await window.electronAPI.setUserData(key, value);
+                if (!response.success) {
+                    showErrorToast(friendlyErrorMessage(response.error, 'save'));
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                showErrorToast(friendlyErrorMessage(err.message, 'save'));
+                return false;
+            }
+        }
+
         async function loadCustomCategories() {
-            const response = await window.electronAPI.getUserData('custom_income_categories');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
+            const value = await loadFromStorage('custom_income_categories');
+            return Array.isArray(value) ? value : [];
         }
 
         async function saveCustomCategories(categories) {
-            await window.electronAPI.setUserData('custom_income_categories', categories);
+            return saveToStorage('custom_income_categories', categories);
         }
 
         async function getAllCategories() {
@@ -249,17 +282,17 @@
         }
 
         async function loadIncome() {
-            const response = await window.electronAPI.getUserData('income');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
+            const value = await loadFromStorage('income');
+            return Array.isArray(value) ? value : [];
         }
 
         async function saveIncome(income) {
-            await window.electronAPI.setUserData('income', income);
+            return saveToStorage('income', income);
         }
 
         async function loadPurchases() {
-            const response = await window.electronAPI.getUserData('purchases');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
+            const value = await loadFromStorage('purchases');
+            return Array.isArray(value) ? value : [];
         }
 
         function daysBetween(start, end) {
@@ -286,10 +319,9 @@
         }
 
         async function getFinancialStats() {
-            const setupResponse = await window.electronAPI.getUserData('financial_setup');
-            if (!setupResponse.success || !setupResponse.value) return null;
+            const data = await loadFromStorage('financial_setup');
+            if (!data) return null;
 
-            const data = setupResponse.value;
             const purchases = await loadPurchases();
             const incomeEntries = await loadIncome();
             const todayStr = todayISO();
@@ -540,9 +572,9 @@
                         lastDeletedIncome = currentIncome[iIndex];
                         lastDeletedIncomeIndex = iIndex;
                         currentIncome.splice(iIndex, 1);
-                        await saveIncome(currentIncome);
+                        const saved = await saveIncome(currentIncome);
                         renderHistoryView();
-                        showUndoToast('income');
+                        if (saved) showUndoToast('income');
                     }
                 });
             });
@@ -697,6 +729,38 @@
             if (e.target === congratsModalOverlay) congratsModalOverlay.classList.remove('visible');
         });
 
+        let errorToastTimer = null;
+
+        function friendlyErrorMessage(rawMessage, action) {
+            const msg = (rawMessage || '').toLowerCase();
+            const isNetworkError = msg.includes('fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('offline') || msg === '';
+            if (isNetworkError) {
+                return action === 'save'
+                    ? "Couldn't save — check your internet connection and try again."
+                    : "Couldn't load your data — check your internet connection.";
+            }
+            return action === 'save'
+                ? `Couldn't save: ${rawMessage}`
+                : `Couldn't load your data: ${rawMessage}`;
+        }
+
+        function showErrorToast(message) {
+            const toast = document.getElementById('errorToast');
+            if (!toast) return;
+            toast.querySelector('span').innerText = message;
+            toast.classList.add('visible');
+            clearTimeout(errorToastTimer);
+            errorToastTimer = setTimeout(hideErrorToast, 6000);
+        }
+
+        function hideErrorToast() {
+            const toast = document.getElementById('errorToast');
+            if (toast) toast.classList.remove('visible');
+            clearTimeout(errorToastTimer);
+        }
+
+        document.getElementById('errorToastCloseBtn').addEventListener('click', hideErrorToast);
+
         function showUndoToast(type) {
             undoType = type;
             const toast = document.getElementById('undoToast');
@@ -724,21 +788,24 @@
             if (undoType === 'income' && lastDeletedIncome !== null) {
                 const income = await loadIncome();
                 income.splice(lastDeletedIncomeIndex, 0, lastDeletedIncome);
-                await saveIncome(income);
+                const saved = await saveIncome(income);
                 renderHistoryView();
+                if (!saved) return;
                 document.getElementById('undoToast').classList.remove('visible');
                 lastDeletedIncome = null;
             } else if (undoType === 'category' && lastDeletedCategory !== null) {
                 const customCategories = await loadCustomCategories();
                 const insertAt = Math.max(0, Math.min(lastDeletedCategoryIndex, customCategories.length));
                 customCategories.splice(insertAt, 0, lastDeletedCategory);
-                await saveCustomCategories(customCategories);
+                const saved = await saveCustomCategories(customCategories);
                 await renderCategoryTags(true);
                 renderHistoryView();
+                if (!saved) return;
                 document.getElementById('undoToast').classList.remove('visible');
                 lastDeletedCategory = null;
             } else if (undoType === 'steadyIncome' && lastDeletedSteadyIncome !== null) {
-                await saveSteadyIncome(lastDeletedSteadyIncome);
+                const saved = await saveSteadyIncome(lastDeletedSteadyIncome);
+                if (!saved) return;
 
                 steadyJobNameInput.value = lastDeletedSteadyIncome.jobName || '';
                 steadyPayAmountInput.value = lastDeletedSteadyIncome.payAmount || '';
@@ -796,13 +863,12 @@
         }
 
         async function loadSteadyIncome() {
-            const response = await window.electronAPI.getUserData('steady_income');
-            const value = (response.success && response.value) ? response.value : null;
+            const value = await loadFromStorage('steady_income');
             return (value && value.payAmount && value.startDate) ? value : null;
         }
 
         async function saveSteadyIncome(data) {
-            await window.electronAPI.setUserData('steady_income', data);
+            return saveToStorage('steady_income', data);
         }
 
         let steadyIncomeProcessingChain = Promise.resolve();
@@ -839,8 +905,9 @@
 
             if (changed) {
                 steady.nextPaydayDate = nextPayday;
-                await saveIncome(income);
-                await saveSteadyIncome(steady);
+                const incomeSaved = await saveIncome(income);
+                const steadySaved = await saveSteadyIncome(steady);
+                if (!incomeSaved || !steadySaved) return;
 
                 const subtitle = paydaysLogged > 1
                     ? `Successfully auto-logged ${formatCurrency(totalLogged)} from ${paydaysLogged} paydays for ${escapeHtml(steady.jobName || 'your steady income')}.`
@@ -908,10 +975,10 @@
                     lastDeletedCategoryIndex = cIndex;
 
                     customCategories.splice(cIndex, 1);
-                    await saveCustomCategories(customCategories);
+                    const saved = await saveCustomCategories(customCategories);
                     await renderCategoryTags(true);
                     renderHistoryView();
-                    showUndoToast('category');
+                    if (saved) showUndoToast('category');
                 });
             });
 
@@ -1071,10 +1138,12 @@
                     date
                 });
             }
-            await saveIncome(income);
+            const saved = await saveIncome(income);
 
             submitIncomeBtn.disabled = false;
             submitIncomeBtn.innerText = isEditing ? 'Save Changes' : 'Log Income';
+            if (!saved) return;
+
             closeIncomeModal();
             renderHistoryView();
 
@@ -1113,11 +1182,13 @@
                 startDate,
                 nextPaydayDate: startDateChanged ? startDate : (existingSteady.nextPaydayDate || startDate)
             };
-            await saveSteadyIncome(steady);
-            await processSteadyIncomePaydays();
+            const saved = await saveSteadyIncome(steady);
 
             saveSteadyIncomeBtn.disabled = false;
             saveSteadyIncomeBtn.innerText = 'Save Steady Income';
+            if (!saved) return;
+
+            await processSteadyIncomePaydays();
             closeIncomeModal();
             renderHistoryView();
         });
@@ -1127,7 +1198,8 @@
 
             lastDeletedSteadyIncome = steady;
 
-            await saveSteadyIncome({});
+            const saved = await saveSteadyIncome({});
+            if (!saved) return;
 
             steadyJobNameInput.value = '';
             steadyPayAmountInput.value = '';

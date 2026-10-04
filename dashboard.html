@@ -679,7 +679,8 @@
                     isGoal: true,
                     fromSurplus: true
                 });
-                await savePurchases(purchases);
+                const purchaseSaved = await savePurchases(purchases);
+                if (!purchaseSaved) return;
             }
 
             goalData.goals.splice(idx, 1);
@@ -699,7 +700,9 @@
                 });
             }
 
-            await saveGoalData(goalData);
+            const goalSaved = await saveGoalData(goalData);
+            if (!goalSaved) return;
+
             refreshAll();
             showUndoToast(createPurchase ? 'Goal purchased.' : 'Goal deleted.', async () => {
                 await saveGoalData({ goals: snapshot });
@@ -997,9 +1000,11 @@
 
             submitGoalBtn.disabled = true;
             submitGoalBtn.innerText = 'Saving...';
-            await saveGoalData({ goals });
+            const saved = await saveGoalData({ goals });
             submitGoalBtn.disabled = false;
             submitGoalBtn.innerText = 'Save Goal';
+            if (!saved) return;
+
             closeGoalModal();
             loadGoalCard();
         });
@@ -1087,9 +1092,13 @@
             } else {
                 incomeEntries.push({ id: newId(), amount, description, tag: incomeTagPicker.selected, date: todayISO() });
             }
-            await saveIncome(incomeEntries);
-
+            const saved = await saveIncome(incomeEntries);
             submitIncomeBtn.disabled = false;
+            if (!saved) {
+                submitIncomeBtn.innerText = id ? 'Save Changes' : 'Log Income';
+                return;
+            }
+
             closeIncomeModal();
             refreshAll();
             showIncomeCongrats(id ? 'Changes Saved!' : undefined, undefined, !id);
@@ -1114,17 +1123,19 @@
             saveSteadyIncomeBtn.innerText = 'Saving...';
 
             const existing = await loadSteadyIncome();
-            await saveSteadyIncome({
+            const saved = await saveSteadyIncome({
                 jobName,
                 payAmount,
                 payFrequency: steadyPayFrequencySelect.value,
                 startDate,
                 nextPaydayDate: existing && existing.startDate === startDate ? existing.nextPaydayDate || startDate : startDate
             });
-            await processSteadyIncomePaydays();
 
             saveSteadyIncomeBtn.disabled = false;
             saveSteadyIncomeBtn.innerText = 'Save Steady Income';
+            if (!saved) return;
+
+            await processSteadyIncomePaydays();
             closeIncomeModal();
             refreshAll();
             showIncomeCongrats('Steady Income Saved!', undefined, false);
@@ -1134,7 +1145,9 @@
             const previous = await loadSteadyIncome();
             if (!previous) return;
 
-            await saveSteadyIncome({});
+            const saved = await saveSteadyIncome({});
+            if (!saved) return;
+
             fillSteadyForm(null);
             setSteadyIncomeExpanded(false);
             refreshAll();
@@ -1160,8 +1173,10 @@
             if (btn.classList.contains('edit-income-btn')) return openIncomeModal(entries[index]);
 
             const [removed] = entries.splice(index, 1);
-            await saveIncome(entries);
+            const saved = await saveIncome(entries);
             refreshAll();
+            if (!saved) return;
+
             showUndoToast('Income entry deleted.', async () => {
                 const current = await loadIncome();
                 current.splice(index, 0, removed);

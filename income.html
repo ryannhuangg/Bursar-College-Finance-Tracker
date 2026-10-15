@@ -59,10 +59,24 @@
                 </div>
 
                 <div class="tabs-container">
-                    <button class="tab-btn active" id="tab-monthly" onclick="setTab('monthly')">Monthly</button>
-                    <button class="tab-btn" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
-                    <button class="tab-btn" id="tab-daily" onclick="setTab('daily')">Daily</button>
-                    <button class="tab-btn" id="tab-all" onclick="setTab('all')">All-Time</button>
+                    <div class="tabs-left">
+                        <button class="tab-btn active" id="tab-monthly" onclick="setTab('monthly')">Monthly</button>
+                        <button class="tab-btn" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
+                        <button class="tab-btn" id="tab-daily" onclick="setTab('daily')">Daily</button>
+                        <button class="tab-btn" id="tab-all" onclick="setTab('all')">All-Time</button>
+                        <button class="tab-btn" id="tab-custom" onclick="setTab('custom')">Custom Range</button>
+                    </div>
+                    <div class="filter-controls">
+                        <div class="date-range-inputs" id="customDateRange">
+                            <input type="date" id="filterStartDate" class="filter-date-input">
+                            <span class="date-range-sep">to</span>
+                            <input type="date" id="filterEndDate" class="filter-date-input">
+                        </div>
+                        <button type="button" class="active-category-pill" id="activeCategoryPill" title="Clear category filter">
+                            <span id="activeCategoryText"></span>
+                            <span>✕</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="history-content">
@@ -77,7 +91,18 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Description</th>
-                                    <th>Source</th>
+                                    <th>
+                                        <div class="th-filter-wrap" id="categoryHeaderWrap">
+                                            <button type="button" class="th-filter-btn" id="categoryHeaderBtn" title="Click to filter by category">
+                                                <span>Category</span>
+                                                <svg class="th-filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <polygon points="1.5 2 14.5 2 9.5 8 9.5 13 6.5 14.5 6.5 8 1.5 2"></polygon>
+                                                </svg>
+                                                <span class="th-filter-caret">▾</span>
+                                            </button>
+                                            <div class="category-filter-dropdown" id="categoryFilterDropdown"></div>
+                                        </div>
+                                    </th>
                                     <th>Amount</th>
                                     <th style="width: 40px; text-align: right;">Action</th>
                                 </tr>
@@ -408,73 +433,184 @@
             return `${month}/${day}/${year}`;
         }
 
+        let selectedCategory = null;
+        let customStart = '';
+        let customEnd = '';
+
         function setTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById('customDateRange').classList.toggle('visible', tab === 'custom');
             renderHistoryView();
         }
 
+        function setCategoryFilter(tag) {
+            selectedCategory = tag || null;
+            const pill = document.getElementById('activeCategoryPill');
+            const headerBtn = document.getElementById('categoryHeaderBtn');
+            if (selectedCategory) {
+                document.getElementById('activeCategoryText').innerText = selectedCategory;
+                pill.classList.add('visible');
+                headerBtn.classList.add('has-filter');
+            } else {
+                pill.classList.remove('visible');
+                headerBtn.classList.remove('has-filter');
+            }
+            closeCategoryDropdown();
+            renderHistoryView();
+        }
+
+        function toggleCategoryFilter(tag) {
+            setCategoryFilter(selectedCategory === tag ? null : tag);
+        }
+
+        function closeCategoryDropdown() {
+            document.getElementById('categoryFilterDropdown').classList.remove('visible');
+            document.getElementById('categoryHeaderWrap').classList.remove('open');
+        }
+
+        function renderCategoryDropdown(allIncome, allCategories, categoryColors) {
+            const tagSet = new Set([
+                ...allCategories.map(c => c.name),
+                ...allIncome.map(i => i.tag).filter(Boolean)
+            ]);
+            const tags = [...tagSet].sort((a, b) => {
+                if (a === 'Other') return 1;
+                if (b === 'Other') return -1;
+                return a.localeCompare(b);
+            });
+
+            const allItem = `
+                <button type="button" class="category-dropdown-item${!selectedCategory ? ' selected' : ''}" data-filter-tag="">
+                    <span class="category-dropdown-left">
+                        <span class="legend-color" style="background: conic-gradient(#4ade80, #0ea5e9, #a855f7, #f59e0b); width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+                        <span>All Categories</span>
+                    </span>
+                    ${!selectedCategory ? '<span class="category-dropdown-check">✓</span>' : ''}
+                </button>
+            `;
+
+            const items = tags.map((tag) => {
+                const isSelected = selectedCategory === tag;
+                const color = categoryColors[tag] || '#6b7280';
+                return `
+                    <button type="button" class="category-dropdown-item${isSelected ? ' selected' : ''}" data-filter-tag="${escapeHtml(tag)}">
+                        <span class="category-dropdown-left">
+                            <span class="legend-color" style="background-color: ${color}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+                            <span>${escapeHtml(tag)}</span>
+                        </span>
+                        ${isSelected ? '<span class="category-dropdown-check">✓</span>' : ''}
+                    </button>
+                `;
+            }).join('');
+
+            document.getElementById('categoryFilterDropdown').innerHTML = allItem + items;
+        }
+
+        document.getElementById('categoryHeaderBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = document.getElementById('categoryFilterDropdown').classList.toggle('visible');
+            document.getElementById('categoryHeaderWrap').classList.toggle('open', isOpen);
+        });
+
+        document.getElementById('activeCategoryPill').addEventListener('click', () => toggleCategoryFilter(selectedCategory));
+
+        document.getElementById('filterStartDate').addEventListener('change', (e) => {
+            customStart = e.target.value;
+            renderHistoryView();
+        });
+
+        document.getElementById('filterEndDate').addEventListener('change', (e) => {
+            customEnd = e.target.value;
+            renderHistoryView();
+        });
+
+        document.addEventListener('click', (e) => {
+            const dropItem = e.target.closest('.category-dropdown-item');
+            if (dropItem) {
+                const wanted = dropItem.dataset.filterTag;
+                setCategoryFilter(wanted === selectedCategory ? null : wanted);
+                return;
+            }
+            if (!e.target.closest('#categoryHeaderWrap')) {
+                closeCategoryDropdown();
+            }
+            const tagEl = e.target.closest('.legend-item[data-tag], .clickable-tag[data-tag]');
+            if (tagEl) toggleCategoryFilter(tagEl.dataset.tag);
+        });
+
         function filterIncome(income) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const today = todayISO();
+            const now = new Date();
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+            const weekStartISO = getLocalISO(weekStart);
 
             return income.filter(i => {
                 if (!i.date) return false;
-                const iDate = new Date(i.date + 'T00:00:00');
-
-                if (currentTab === 'all') {
+                if (currentTab === 'daily') return i.date === today;
+                if (currentTab === 'weekly') return i.date >= weekStartISO && i.date <= today;
+                if (currentTab === 'monthly') return i.date.slice(0, 7) === today.slice(0, 7);
+                if (currentTab === 'custom') {
+                    if (customStart && i.date < customStart) return false;
+                    if (customEnd && i.date > customEnd) return false;
                     return true;
-                } else if (currentTab === 'daily') {
-                    return iDate.toDateString() === today.toDateString();
-                } else if (currentTab === 'weekly') {
-                    const weekStart = new Date(today);
-                    weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-                    return iDate >= weekStart && iDate <= today;
-                } else if (currentTab === 'monthly') {
-                    return iDate.getMonth() === today.getMonth() && iDate.getFullYear() === today.getFullYear();
                 }
                 return true;
             });
         }
 
-        async function renderChart(filteredIncome, categoryColors) {
+        async function renderChart(timeframeIncome, categoryColors) {
             const container = document.getElementById('pieChartContainer');
             const legendContainer = document.getElementById('pieLegendContainer');
 
-            let timeframeTotal = 0;
-            const categoryTotals = {};
-
-            filteredIncome.forEach(i => {
+            const allCategoryTotals = {};
+            timeframeIncome.forEach(i => {
                 const amt = Number(i.amount) || 0;
                 if (amt > 0) {
-                    timeframeTotal += amt;
-                    categoryTotals[i.tag] = (categoryTotals[i.tag] || 0) + amt;
+                    allCategoryTotals[i.tag] = (allCategoryTotals[i.tag] || 0) + amt;
                 }
             });
 
-            if (timeframeTotal === 0) {
+            const sortedAllTotals = Object.entries(allCategoryTotals).sort((a, b) => a[0].localeCompare(b[0]));
+
+            if (sortedAllTotals.length === 0) {
                 container.innerHTML = `<div class="empty-pie">No income logged.</div>`;
                 legendContainer.innerHTML = '';
                 return;
             }
 
-            let cumulativePercent = 0;
-            let svgPaths = `<circle r="1" cx="0" cy="0" fill="#26262b"></circle>`;
+            const chartEntries = selectedCategory
+                ? sortedAllTotals.filter(([tag]) => tag === selectedCategory)
+                : sortedAllTotals;
+            const timeframeTotal = chartEntries.reduce((sum, [, amt]) => sum + amt, 0);
+
             let legendHTML = '';
-
-            const sortedCategoryTotals = Object.entries(categoryTotals).sort((a, b) => a[0].localeCompare(b[0]));
-
-            for (const [tag, amount] of sortedCategoryTotals) {
+            for (const [tag] of sortedAllTotals) {
                 const color = categoryColors[tag] || '#6b7280';
-                const slicePercent = amount / timeframeTotal;
-
+                const isActive = selectedCategory === tag;
+                const isDimmed = selectedCategory && !isActive;
                 legendHTML += `
-                    <div class="legend-item">
+                    <div class="legend-item${isActive ? ' active' : ''}${isDimmed ? ' dimmed' : ''}" data-tag="${escapeHtml(tag)}" title="Filter by ${escapeHtml(tag)}">
                         <div class="legend-color" style="background-color: ${color}"></div>
                         <span>${escapeHtml(tag)}</span>
                     </div>
                 `;
+            }
+            legendContainer.innerHTML = legendHTML;
+
+            if (timeframeTotal === 0) {
+                container.innerHTML = `<div class="empty-pie">No income in ${escapeHtml(selectedCategory)}.</div>`;
+                return;
+            }
+
+            let cumulativePercent = 0;
+            let svgPaths = `<circle r="1" cx="0" cy="0" fill="#26262b"></circle>`;
+
+            for (const [tag, amount] of chartEntries) {
+                const color = categoryColors[tag] || '#6b7280';
+                const slicePercent = amount / timeframeTotal;
 
                 if (slicePercent >= 1) {
                     svgPaths += `<circle r="1" cx="0" cy="0" fill="${color}" class="pie-slice" data-desc="${escapeHtml(tag)} Total" data-amount="${amount.toFixed(2)}" data-tag="${escapeHtml(tag)}"></circle>`;
@@ -496,7 +632,6 @@
             }
 
             container.innerHTML = `<svg viewBox="-1 -1 2 2" class="daily-pie-chart">${svgPaths}</svg>`;
-            legendContainer.innerHTML = legendHTML;
 
             const globalTooltip = document.getElementById('globalTooltip');
             document.querySelectorAll('.pie-slice').forEach(slice => {
@@ -521,7 +656,7 @@
             const tbody = document.getElementById('historyTableBody');
 
             if (filteredIncome.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="empty-recent">No income found for this timeframe.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-recent">No income found for this filter.</td></tr>`;
                 return;
             }
 
@@ -530,13 +665,14 @@
             let rowsHTML = '';
             filteredIncome.forEach(i => {
                 const color = categoryColors[i.tag] || '#6b7280';
+                const isActiveTag = selectedCategory === i.tag;
 
                 rowsHTML += `
                     <tr>
                         <td>${formatDate(i.date)}</td>
                         <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(i.description)}">${escapeHtml(i.description)}</td>
                         <td>
-                            <div class="recent-tag-badge">
+                            <div class="recent-tag-badge clickable-tag${isActiveTag ? ' active' : ''}" data-tag="${escapeHtml(i.tag)}" title="Filter by ${escapeHtml(i.tag)}">
                                 <div class="legend-color" style="background-color: ${color}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></div>
                                 ${escapeHtml(i.tag)}
                             </div>
@@ -582,14 +718,18 @@
 
         async function renderHistoryView() {
             const allIncome = await loadIncome();
-            const filteredIncome = filterIncome(allIncome);
+            const timeframeIncome = filterIncome(allIncome);
+            const finalFiltered = selectedCategory
+                ? timeframeIncome.filter(i => i.tag === selectedCategory)
+                : timeframeIncome;
 
             const allCategories = await getAllCategories();
             const categoryColors = {};
             allCategories.forEach(c => { categoryColors[c.name] = c.color; });
 
-            await renderHistoryTable(filteredIncome, categoryColors);
-            await renderChart(filteredIncome, categoryColors);
+            renderCategoryDropdown(allIncome, allCategories, categoryColors);
+            await renderHistoryTable(finalFiltered, categoryColors);
+            await renderChart(timeframeIncome, categoryColors);
         }
 
         function fireConfetti() {

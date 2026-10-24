@@ -60,23 +60,24 @@
                 </div>
                 
                 <div class="tabs-container">
-                    <div class="tabs-left">
-                        <button class="tab-btn active" id="tab-monthly" onclick="setTab('monthly')">Monthly</button>
-                        <button class="tab-btn" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
-                        <button class="tab-btn" id="tab-daily" onclick="setTab('daily')">Daily</button>
-                        <button class="tab-btn" id="tab-all" onclick="setTab('all')">All-Time</button>
-                        <button class="tab-btn" id="tab-custom" onclick="setTab('custom')">Custom Range</button>
-                    </div>
-                    <div class="filter-controls">
-                        <div class="date-range-inputs" id="customDateRange">
-                            <input type="date" id="filterStartDate" class="filter-date-input">
-                            <span class="date-range-sep">to</span>
-                            <input type="date" id="filterEndDate" class="filter-date-input">
+                    <button class="tab-btn active" id="tab-monthly" onclick="setTab('monthly')">Monthly</button>
+                    <button class="tab-btn" id="tab-weekly" onclick="setTab('weekly')">Weekly</button>
+                    <button class="tab-btn" id="tab-daily" onclick="setTab('daily')">Daily</button>
+                    <button class="tab-btn" id="tab-all" onclick="setTab('all')">All-Time</button>
+                    <div class="filter-bar">
+                        <div class="filter-field">
+                            <label for="filterCategory">Category</label>
+                            <select id="filterCategory"><option value="">All</option></select>
                         </div>
-                        <button type="button" class="active-category-pill" id="activeCategoryPill" title="Clear category filter">
-                            <span id="activeCategoryText"></span>
-                            <span>✕</span>
-                        </button>
+                        <div class="filter-field">
+                            <label for="filterFrom">From</label>
+                            <input type="date" id="filterFrom">
+                        </div>
+                        <div class="filter-field">
+                            <label for="filterTo">To</label>
+                            <input type="date" id="filterTo">
+                        </div>
+                        <button type="button" class="filter-clear-btn" id="filterClearBtn">Clear</button>
                     </div>
                 </div>
 
@@ -92,18 +93,7 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Description</th>
-                                    <th>
-                                        <div class="th-filter-wrap" id="categoryHeaderWrap">
-                                            <button type="button" class="th-filter-btn" id="categoryHeaderBtn" title="Click to filter by category">
-                                                <span>Category</span>
-                                                <svg class="th-filter-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                    <polygon points="1.5 2 14.5 2 9.5 8 9.5 13 6.5 14.5 6.5 8 1.5 2"></polygon>
-                                                </svg>
-                                                <span class="th-filter-caret">▾</span>
-                                            </button>
-                                            <div class="category-filter-dropdown" id="categoryFilterDropdown"></div>
-                                        </div>
-                                    </th>
+                                    <th>Category</th>
                                     <th>Cost</th>
                                     <th>Status</th>
                                     <th style="width: 40px; text-align: right;">Action</th>
@@ -155,106 +145,69 @@
         const $ = (id) => document.getElementById(id);
 
         let currentTab = 'monthly';
-        let selectedCategory = null;
-        let customStart = '';
-        let customEnd = '';
+        let filterCategory = '';
+        let filterFrom = '';
+        let filterTo = '';
+
+        const hasCustomRange = () => !!(filterFrom || filterTo);
 
         function formatDate(dateString) {
             const [year, month, day] = dateString.split('-');
             return `${month}/${day}/${year}`;
         }
 
+        function syncTabHighlight() {
+            document.querySelectorAll('.tab-btn').forEach((btn) => {
+                btn.classList.toggle('active', !hasCustomRange() && btn.id === `tab-${currentTab}`);
+            });
+        }
+
         function setTab(tab) {
             currentTab = tab;
-            document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.remove('active'));
-            $(`tab-${tab}`).classList.add('active');
-            $('customDateRange').classList.toggle('visible', tab === 'custom');
+            filterFrom = '';
+            filterTo = '';
+            $('filterFrom').value = '';
+            $('filterTo').value = '';
+            $('filterFrom').removeAttribute('max');
+            $('filterTo').removeAttribute('min');
+            syncTabHighlight();
             renderHistoryView();
         }
 
-        function setCategoryFilter(tag) {
-            selectedCategory = tag || null;
-            const pill = $('activeCategoryPill');
-            const headerBtn = $('categoryHeaderBtn');
-            if (selectedCategory) {
-                $('activeCategoryText').innerText = selectedCategory;
-                pill.classList.add('visible');
-                headerBtn.classList.add('has-filter');
-            } else {
-                pill.classList.remove('visible');
-                headerBtn.classList.remove('has-filter');
-            }
-            closeCategoryDropdown();
-            renderHistoryView();
+        function populateCategoryFilter(purchases) {
+            const tags = [...new Set(purchases.map((p) => p.tag).filter(Boolean))].sort();
+            if (filterCategory && !tags.includes(filterCategory)) filterCategory = '';
+            const select = $('filterCategory');
+            select.replaceChildren(new Option('All', ''), ...tags.map((t) => new Option(t, t)));
+            select.value = filterCategory;
         }
 
-        function toggleCategoryFilter(tag) {
-            setCategoryFilter(selectedCategory === tag ? null : tag);
-        }
-
-        function closeCategoryDropdown() {
-            $('categoryFilterDropdown').classList.remove('visible');
-            $('categoryHeaderWrap').classList.remove('open');
-        }
-
-        async function renderCategoryDropdown(purchases, colorFor) {
-            const custom = await loadList('custom_categories');
-            const tagSet = new Set([
-                ...DEFAULT_CATEGORIES.map((c) => c.name),
-                ...custom.map((c) => c.name),
-                ...purchases.map((p) => p.tag).filter(Boolean)
-            ]);
-            const tags = [...tagSet].sort((a, b) => {
-                if (a === 'Other') return 1;
-                if (b === 'Other') return -1;
-                return a.localeCompare(b);
-            });
-
-            const allItem = `
-                <button type="button" class="category-dropdown-item${!selectedCategory ? ' selected' : ''}" data-filter-tag="">
-                    <span class="category-dropdown-left">
-                        <span class="legend-color" style="background: conic-gradient(#f59e0b, #a855f7, #3b82f6, #10b981); width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
-                        <span>All Categories</span>
-                    </span>
-                    ${!selectedCategory ? '<span class="category-dropdown-check">✓</span>' : ''}
-                </button>
-            `;
-
-            const items = tags.map((tag) => {
-                const isSelected = selectedCategory === tag;
-                return `
-                    <button type="button" class="category-dropdown-item${isSelected ? ' selected' : ''}" data-filter-tag="${escapeHtml(tag)}">
-                        <span class="category-dropdown-left">
-                            <span class="legend-color" style="background-color: ${colorFor(tag)}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
-                            <span>${escapeHtml(tag)}</span>
-                        </span>
-                        ${isSelected ? '<span class="category-dropdown-check">✓</span>' : ''}
-                    </button>
-                `;
-            }).join('');
-
-            $('categoryFilterDropdown').innerHTML = allItem + items;
-        }
-
-        $('categoryHeaderBtn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = $('categoryFilterDropdown').classList.toggle('visible');
-            $('categoryHeaderWrap').classList.toggle('open', isOpen);
-        });
-
-        $('activeCategoryPill').addEventListener('click', () => toggleCategoryFilter(selectedCategory));
-
-        $('filterStartDate').addEventListener('change', (e) => {
-            customStart = e.target.value;
+        $('filterCategory').addEventListener('change', (e) => {
+            filterCategory = e.target.value;
             renderHistoryView();
         });
 
-        $('filterEndDate').addEventListener('change', (e) => {
-            customEnd = e.target.value;
+        $('filterFrom').addEventListener('change', (e) => {
+            filterFrom = e.target.value;
+            if (filterFrom) $('filterTo').min = filterFrom; else $('filterTo').removeAttribute('min');
+            syncTabHighlight();
             renderHistoryView();
         });
 
-        function filterByTimeframe(purchases) {
+        $('filterTo').addEventListener('change', (e) => {
+            filterTo = e.target.value;
+            if (filterTo) $('filterFrom').max = filterTo; else $('filterFrom').removeAttribute('max');
+            syncTabHighlight();
+            renderHistoryView();
+        });
+
+        $('filterClearBtn').addEventListener('click', () => {
+            filterCategory = '';
+            $('filterCategory').value = '';
+            setTab(currentTab);
+        });
+
+        function filterPurchases(purchases) {
             const today = todayISO();
             const now = new Date();
             const weekStart = new Date(now);
@@ -263,61 +216,41 @@
 
             return purchases.filter((p) => {
                 if (!p.date) return false;
+                if (filterCategory && p.tag !== filterCategory) return false;
+                if (hasCustomRange()) return (!filterFrom || p.date >= filterFrom) && (!filterTo || p.date <= filterTo);
                 if (currentTab === 'daily') return p.date === today;
                 if (currentTab === 'weekly') return p.date >= weekStartISO && p.date <= today;
                 if (currentTab === 'monthly') return p.date.slice(0, 7) === today.slice(0, 7);
-                if (currentTab === 'custom') {
-                    if (customStart && p.date < customStart) return false;
-                    if (customEnd && p.date > customEnd) return false;
-                    return true;
-                }
                 return true;
             });
         }
 
-        function renderChart(timeframePurchases, colorFor) {
-            const allTotals = new Map();
-            timeframePurchases.forEach((p) => {
+        function renderChart(purchases, colorFor) {
+            const totals = new Map();
+            purchases.forEach((p) => {
                 const net = netAmount(p);
-                if (net > 0) allTotals.set(p.tag, (allTotals.get(p.tag) || 0) + net);
+                if (net > 0) totals.set(p.tag, (totals.get(p.tag) || 0) + net);
             });
 
-            const allEntries = [...allTotals].sort((a, b) => a[0].localeCompare(b[0]));
-            const chartEntries = selectedCategory
-                ? allEntries.filter(([tag]) => tag === selectedCategory)
-                : allEntries;
-            const total = chartEntries.reduce((sum, [, amount]) => sum + amount, 0);
+            const entries = [...totals].sort((a, b) => a[0].localeCompare(b[0]));
+            const total = entries.reduce((sum, [, amount]) => sum + amount, 0);
 
-            if (allEntries.length === 0) {
+            if (total === 0) {
                 $('pieChartContainer').innerHTML = `<div class="empty-pie">No purchases.</div>`;
                 $('pieLegendContainer').innerHTML = '';
                 return;
             }
 
-            if (total === 0) {
-                $('pieChartContainer').innerHTML = `<div class="empty-pie">No purchases in ${escapeHtml(selectedCategory)}.</div>`;
-            } else {
-                const slices = chartEntries.map(([tag, amount]) => ({ amount, color: colorFor(tag), desc: `${tag} Total`, tag }));
-                $('pieChartContainer').innerHTML = pieSvg(slices, total, '#131316');
-            }
-
-            $('pieLegendContainer').innerHTML = allEntries.map(([tag]) => {
-                const isActive = selectedCategory === tag;
-                const isDimmed = selectedCategory && !isActive;
-                return `
-                    <div class="legend-item${isActive ? ' active' : ''}${isDimmed ? ' dimmed' : ''}" data-tag="${escapeHtml(tag)}" title="Filter by ${escapeHtml(tag)}">
-                        <div class="legend-color" style="background-color: ${colorFor(tag)}"></div>
-                        <span>${escapeHtml(tag)}</span>
-                    </div>
-                `;
-            }).join('');
+            const slices = entries.map(([tag, amount]) => ({ amount, color: colorFor(tag), desc: `${tag} Total`, tag }));
+            $('pieChartContainer').innerHTML = pieSvg(slices, total, '#131316');
+            $('pieLegendContainer').innerHTML = legendHtml(entries.map(([tag]) => tag), colorFor);
         }
 
         function renderHistoryTable(purchases, colorFor) {
             const tbody = $('historyTableBody');
 
             if (purchases.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="empty-recent">No purchases found for this filter.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-recent">No purchases found for this timeframe.</td></tr>`;
                 return;
             }
 
@@ -337,14 +270,12 @@
                     statusDisplay = `<span class="surplus-badge">Surplus</span>`;
                 }
 
-                const isActiveTag = selectedCategory === p.tag;
-
                 return `
                     <tr>
                         <td>${formatDate(p.date)}</td>
                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}</td>
                         <td>
-                            <div class="recent-tag-badge clickable-tag${isActiveTag ? ' active' : ''}" data-tag="${escapeHtml(p.tag)}" title="Filter by ${escapeHtml(p.tag)}">
+                            <div class="recent-tag-badge">
                                 <div class="legend-color" style="background-color: ${colorFor(p.tag)}; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></div>
                                 ${escapeHtml(p.tag)}
                             </div>
@@ -362,30 +293,12 @@
             }).join('');
         }
 
-        document.addEventListener('click', (e) => {
-            const dropItem = e.target.closest('.category-dropdown-item');
-            if (dropItem) {
-                const wanted = dropItem.dataset.filterTag;
-                setCategoryFilter(wanted === selectedCategory ? null : wanted);
-                return;
-            }
-            if (!e.target.closest('#categoryHeaderWrap')) {
-                closeCategoryDropdown();
-            }
-            const tagEl = e.target.closest('.legend-item[data-tag], .clickable-tag[data-tag]');
-            if (tagEl) toggleCategoryFilter(tagEl.dataset.tag);
-        });
-
         async function renderHistoryView() {
             const [purchases, colorFor] = await Promise.all([loadPurchases(), getPurchaseColors()]);
-            const timeframeFiltered = filterByTimeframe(purchases).sort((a, b) => b.date.localeCompare(a.date));
-            const finalFiltered = selectedCategory
-                ? timeframeFiltered.filter((p) => p.tag === selectedCategory)
-                : timeframeFiltered;
-
-            await renderCategoryDropdown(purchases, colorFor);
-            renderHistoryTable(finalFiltered, colorFor);
-            renderChart(timeframeFiltered, colorFor);
+            populateCategoryFilter(purchases);
+            const filtered = filterPurchases(purchases).sort((a, b) => b.date.localeCompare(a.date));
+            renderHistoryTable(filtered, colorFor);
+            renderChart(filtered, colorFor);
             refreshAffordAvailability();
         }
 

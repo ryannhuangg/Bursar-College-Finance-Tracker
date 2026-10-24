@@ -1151,237 +1151,80 @@ h1 {
 
 .tabs-container {
     flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
 }
 
-.tabs-left {
+.filter-bar {
+    flex-basis: 100%;
     display: flex;
-    gap: 8px;
-    align-items: center;
+    align-items: flex-end;
     flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 8px;
 }
 
-.filter-controls {
+.filter-field {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.date-range-inputs {
-    display: none;
-    align-items: center;
-    gap: 6px;
+.filter-field label {
+    font-size: 11px;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.date-range-inputs.visible {
-    display: flex;
-}
-
-.filter-date-input {
-    background-color: #131316;
-    border: 1px solid #26262b;
+.filter-field select,
+.filter-field input[type="date"] {
+    padding: 8px 10px;
+    background-color: #26262b;
+    border: 1px solid #3f3f46;
     border-radius: 6px;
-    color: #e2e8f0;
-    font-size: 12px;
+    color: white;
+    font-size: 13px;
     font-family: inherit;
-    padding: 5px 8px;
+    box-sizing: border-box;
     color-scheme: dark;
 }
 
-.filter-date-input:focus {
+.filter-field select {
+    padding-right: 30px;
+    min-width: 140px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23a1a1aa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5.5 8 10 12.5 14.5 8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 14px;
+    cursor: pointer;
+}
+
+.filter-field select:focus,
+.filter-field input[type="date"]:focus {
     outline: none;
     border-color: #6366f1;
 }
 
-.filter-date-input::-webkit-calendar-picker-indicator {
+.filter-field input[type="date"]::-webkit-calendar-picker-indicator {
     filter: brightness(0) saturate(100%) invert(1);
     cursor: pointer;
-    opacity: 0.7;
-}
-
-.filter-date-input::-webkit-calendar-picker-indicator:hover {
-    opacity: 1;
-}
-
-.date-range-sep {
-    color: #71717a;
-    font-size: 12px;
-}
-
-.legend-item {
-    cursor: pointer;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
-    user-select: none;
-}
-
-.legend-item:hover {
-    background-color: #1f1f23;
-}
-
-.legend-item.active {
-    background-color: #26262b;
-    border-color: #6366f1;
-}
-
-.legend-item.dimmed {
-    opacity: 0.4;
-}
-
-.recent-tag-badge.clickable-tag {
-    cursor: pointer;
-    padding: 3px 8px;
-    margin: -3px -8px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.recent-tag-badge.clickable-tag:hover {
-    background-color: #26262b;
-    border-color: #3f3f46;
-}
-
-.recent-tag-badge.clickable-tag.active {
-    background-color: rgba(99, 102, 241, 0.15);
-    border-color: #6366f1;
-}
-
-.active-category-pill {
-    display: none;
-    align-items: center;
-    gap: 6px;
-    background-color: rgba(99, 102, 241, 0.15);
-    border: 1px solid #6366f1;
-    color: #e2e8f0;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.active-category-pill.visible {
-    display: inline-flex;
-}
-
-.active-category-pill:hover {
-    background-color: rgba(99, 102, 241, 0.25);
-}
-
-.th-filter-wrap {
-    position: relative;
-    display: inline-block;
-}
-
-.th-filter-btn {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid #26262b;
-    color: #a1a1aa;
-    font: inherit;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    margin: -4px -10px;
-    border-radius: 6px;
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-    width: auto;
-}
-
-.th-filter-btn:hover {
-    background-color: #1f1f23;
-    border-color: #3f3f46;
-    color: #ffffff;
-}
-
-.th-filter-btn.has-filter {
-    color: #a5aeff;
-    background-color: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.45);
-}
-
-.th-filter-icon {
-    width: 12px;
-    height: 12px;
     opacity: 0.85;
-    flex-shrink: 0;
 }
 
-.th-filter-caret {
-    font-size: 10px;
-    opacity: 0.75;
-    transition: transform 0.15s ease;
-}
-
-.th-filter-wrap.open .th-filter-caret {
-    transform: rotate(180deg);
-}
-
-.category-filter-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    min-width: 190px;
-    background-color: #1a1a1e;
-    border: 1px solid #3f3f46;
-    border-radius: 8px;
-    padding: 6px;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
-    display: none;
-    flex-direction: column;
-    gap: 2px;
-    z-index: 40;
-}
-
-.category-filter-dropdown.visible {
-    display: flex;
-}
-
-.category-dropdown-item {
+.filter-clear-btn {
     background: none;
-    border: none;
-    color: #e2e8f0;
-    font-size: 13px;
-    font-family: inherit;
-    font-weight: 400;
-    padding: 8px 10px;
+    border: 1px solid #3f3f46;
+    color: #a1a1aa;
     border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    text-align: left;
-    width: 100%;
+    width: auto;
     margin: 0;
-    transition: background-color 0.15s ease;
 }
 
-.category-dropdown-item:hover {
-    background-color: #26262b;
-}
-
-.category-dropdown-item.selected {
-    background-color: rgba(99, 102, 241, 0.18);
-    color: #ffffff;
-    font-weight: 500;
-}
-
-.category-dropdown-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.category-dropdown-check {
-    color: #818cf8;
-    font-size: 12px;
-    font-weight: 700;
+.filter-clear-btn:hover {
+    color: white;
+    border-color: #6366f1;
 }

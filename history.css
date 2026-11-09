@@ -1176,7 +1176,8 @@ h1 {
 }
 
 .filter-field select,
-.filter-field input[type="date"] {
+.filter-field input[type="date"],
+.filter-field input[type="text"] {
     padding: 8px 10px;
     background-color: #26262b;
     border: 1px solid #3f3f46;
@@ -1201,7 +1202,8 @@ h1 {
 }
 
 .filter-field select:focus,
-.filter-field input[type="date"]:focus {
+.filter-field input[type="date"]:focus,
+.filter-field input[type="text"]:focus {
     outline: none;
     border-color: #6366f1;
 }

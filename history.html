@@ -70,6 +70,10 @@
                             <select id="filterCategory"><option value="">All</option></select>
                         </div>
                         <div class="filter-field">
+                            <label for="filterSearch">Search</label>
+                            <input type="text" id="filterSearch" placeholder="Description">
+                        </div>
+                        <div class="filter-field">
                             <label for="filterFrom">From</label>
                             <input type="date" id="filterFrom">
                         </div>
@@ -148,6 +152,7 @@
         let filterCategory = '';
         let filterFrom = '';
         let filterTo = '';
+        let filterSearch = '';
 
         const hasCustomRange = () => !!(filterFrom || filterTo);
 
@@ -187,6 +192,11 @@
             renderHistoryView();
         });
 
+        $('filterSearch').addEventListener('input', (e) => {
+            filterSearch = e.target.value.trim().toLowerCase();
+            renderHistoryView();
+        });
+
         $('filterFrom').addEventListener('change', (e) => {
             filterFrom = e.target.value;
             if (filterFrom) $('filterTo').min = filterFrom; else $('filterTo').removeAttribute('min');
@@ -204,6 +214,8 @@
         $('filterClearBtn').addEventListener('click', () => {
             filterCategory = '';
             $('filterCategory').value = '';
+            filterSearch = '';
+            $('filterSearch').value = '';
             setTab(currentTab);
         });
 
@@ -217,6 +229,7 @@
             return purchases.filter((p) => {
                 if (!p.date) return false;
                 if (filterCategory && p.tag !== filterCategory) return false;
+                if (filterSearch && !(p.description || '').toLowerCase().includes(filterSearch)) return false;
                 if (hasCustomRange()) return (!filterFrom || p.date >= filterFrom) && (!filterTo || p.date <= filterTo);
                 if (currentTab === 'daily') return p.date === today;
                 if (currentTab === 'weekly') return p.date >= weekStartISO && p.date <= today;

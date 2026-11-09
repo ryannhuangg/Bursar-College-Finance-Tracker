@@ -69,6 +69,10 @@
                             <select id="filterCategory"><option value="">All</option></select>
                         </div>
                         <div class="filter-field">
+                            <label for="filterSearch">Search</label>
+                            <input type="text" id="filterSearch" placeholder="Description">
+                        </div>
+                        <div class="filter-field">
                             <label for="filterFrom">From</label>
                             <input type="date" id="filterFrom">
                         </div>
@@ -223,6 +227,7 @@
         let filterCategory = '';
         let filterFrom = '';
         let filterTo = '';
+        let filterSearch = '';
 
         const hasCustomRange = () => !!(filterFrom || filterTo);
         let editingIncomeId = null;
@@ -459,6 +464,11 @@
             renderHistoryView();
         });
 
+        document.getElementById('filterSearch').addEventListener('input', (e) => {
+            filterSearch = e.target.value.trim().toLowerCase();
+            renderHistoryView();
+        });
+
         document.getElementById('filterFrom').addEventListener('change', (e) => {
             filterFrom = e.target.value;
             const toInput = document.getElementById('filterTo');
@@ -478,6 +488,8 @@
         document.getElementById('filterClearBtn').addEventListener('click', () => {
             filterCategory = '';
             document.getElementById('filterCategory').value = '';
+            filterSearch = '';
+            document.getElementById('filterSearch').value = '';
             setTab(currentTab);
         });
 
@@ -488,6 +500,7 @@
             return income.filter(i => {
                 if (!i.date) return false;
                 if (filterCategory && i.tag !== filterCategory) return false;
+                if (filterSearch && !(i.description || '').toLowerCase().includes(filterSearch)) return false;
                 if (hasCustomRange()) return (!filterFrom || i.date >= filterFrom) && (!filterTo || i.date <= filterTo);
                 const iDate = new Date(i.date + 'T00:00:00');
 

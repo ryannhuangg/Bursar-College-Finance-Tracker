@@ -43,6 +43,7 @@
                     <input type="checkbox" id="rememberMe">
                     Remember Me
                 </label>
+                <button type="button" id="forgotBtn" class="link-btn">Forgot password?</button>
             </div>
 
             <button id="loginBtn" class="primary-btn">Log In</button>
@@ -83,6 +84,7 @@
             const rememberMe = rememberMeInput.checked;
 
             if (!email || !password) {
+                errorMsg.style.color = "red";
                 errorMsg.innerText = "Please fill in all fields.";
                 return;
             }
@@ -104,6 +106,28 @@
             }
         });
         
+        document.getElementById('forgotBtn').addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = "Enter your email above first.";
+                return;
+            }
+
+            errorMsg.style.color = "";
+            errorMsg.innerText = "Sending reset email...";
+
+            const response = await window.electronAPI.sendPasswordReset(email);
+
+            if (response.success) {
+                errorMsg.style.color = "green";
+                errorMsg.innerText = "If an account exists for that email, a reset link is on its way.";
+            } else {
+                errorMsg.style.color = "red";
+                errorMsg.innerText = response.error;
+            }
+        });
+
         googleBtn.addEventListener('click', () => {
             window.electronAPI.startGoogleAuth('login');
         });

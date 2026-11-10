@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     
     startGoogleAuth: (intent) => ipcRenderer.send('supabase-google-login', intent),
 
+    sendPasswordReset: (email) => ipcRenderer.invoke('supabase-reset-password', { email }),
+
     updateEmail: (newEmail) => ipcRenderer.invoke('update-email', { newEmail }),
 
     updatePassword: (newPassword) => ipcRenderer.invoke('update-password', { newPassword }),

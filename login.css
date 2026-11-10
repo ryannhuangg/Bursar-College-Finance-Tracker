@@ -130,8 +130,25 @@ button {
 }
 
 .remember-me-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     text-align: left;
     margin-top: 4px;
+}
+
+.link-btn {
+    background: none;
+    color: #a1a1aa;
+    font-size: 13px;
+    font-weight: 400;
+    width: auto;
+    margin: 0;
+    padding: 0;
+}
+
+.link-btn:hover {
+    color: white;
 }
 
 .checkbox-label {

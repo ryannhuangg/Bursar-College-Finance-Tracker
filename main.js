@@ -267,6 +267,18 @@ if (!gotTheLock) {
         }
     });
 
+    ipcMain.handle('supabase-reset-password', async (event, { email }) => {
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${PROTOCOL}://callback`
+            });
+            if (error) return { success: false, error: error.message };
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
     let googleAuthIntent = 'login';
 
     ipcMain.on('supabase-google-login', async (event, intent) => {
@@ -364,7 +376,7 @@ if (!gotTheLock) {
                 if (mainWindow) {
                     mainWindow.webContents.send('google-auth-status', {
                         status: 'error',
-                        message: 'Google sign-in failed. Please try again.'
+                        message: params.get('error_description') || 'Google sign-in failed. Please try again.'
                     });
                 }
                 return;
@@ -382,6 +394,19 @@ if (!gotTheLock) {
                         status: 'error',
                         message: error.message
                     });
+                }
+                return;
+            }
+
+            if (params.get('type') === 'recovery') {
+                if (mainWindow) {
+                    mainWindow.webContents.send('google-auth-status', {
+                        status: 'success',
+                        message: 'Signed in. Change your password in Settings.'
+                    });
+                    setTimeout(() => {
+                        if (mainWindow) mainWindow.loadFile('dashboard.html');
+                    }, 2000);
                 }
                 return;
             }

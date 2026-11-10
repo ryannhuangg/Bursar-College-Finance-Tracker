@@ -102,7 +102,7 @@
                 }, 2000);
             } else {
                 errorMsg.style.color = "red";
-                errorMsg.innerText = response.error;
+                errorMsg.innerText = /fetch|network/i.test(response.error) ? "Can't reach the server. Check your internet connection." : response.error;
             }
         });
         
@@ -124,7 +124,7 @@
                 errorMsg.innerText = "If an account exists for that email, a reset link is on its way.";
             } else {
                 errorMsg.style.color = "red";
-                errorMsg.innerText = response.error;
+                errorMsg.innerText = /fetch|network/i.test(response.error) ? "Can't reach the server. Check your internet connection." : response.error;
             }
         });
 

@@ -96,17 +96,28 @@ if (!gotTheLock) {
         mainWindow.loadFile(startPage);
     }
 
+    async function getAuthedUser() {
+        let { data, error } = await supabase.auth.getUser();
+        const saved = loadSession();
+        if (error && /session missing/i.test(error.message) && saved) {
+            const restored = await supabase.auth.setSession(saved);
+            if (restored.error) return { user: null, error: restored.error };
+            ({ data, error } = await supabase.auth.getUser());
+        }
+        return { user: data?.user ?? null, error };
+    }
+
     ipcMain.handle('get-user-data', async (event, key) => {
         try {
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-            if (userError || !userData?.user) {
-                return { success: false, error: 'Not signed in.' };
+            const { user, error: userError } = await getAuthedUser();
+            if (!user) {
+                return { success: false, error: userError ? userError.message : 'Not signed in.' };
             }
 
             const { data, error } = await supabase
                 .from('user_data')
                 .select('value')
-                .eq('user_id', userData.user.id)
+                .eq('user_id', user.id)
                 .eq('key', key)
                 .maybeSingle();
 
@@ -119,15 +130,15 @@ if (!gotTheLock) {
 
     ipcMain.handle('set-user-data', async (event, { key, value }) => {
         try {
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-            if (userError || !userData?.user) {
-                return { success: false, error: 'Not signed in.' };
+            const { user, error: userError } = await getAuthedUser();
+            if (!user) {
+                return { success: false, error: userError ? userError.message : 'Not signed in.' };
             }
 
             const { error } = await supabase
                 .from('user_data')
                 .upsert({
-                    user_id: userData.user.id,
+                    user_id: user.id,
                     key,
                     value,
                     updated_at: new Date().toISOString()
@@ -453,6 +464,8 @@ if (!gotTheLock) {
             });
 
             if (!error && data?.session) {
+                startPage = 'dashboard.html';
+            } else if (error && (error.name === 'AuthRetryableFetchError' || /fetch|network/i.test(error.message))) {
                 startPage = 'dashboard.html';
             } else {
                 clearSession();

@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Income History - College Finance Tracker</title>
     <link rel="stylesheet" href="income.css">
+    <script src="connection.js"></script>
     <script src="currency.js"></script>
 </head>
 <body>
@@ -265,31 +266,11 @@
         }
 
         async function loadFromStorage(key) {
-            try {
-                const response = await window.electronAPI.getUserData(key);
-                if (!response.success) {
-                    showErrorToast(friendlyErrorMessage(response.error, 'load'));
-                    return null;
-                }
-                return response.value;
-            } catch (err) {
-                showErrorToast(friendlyErrorMessage(err.message, 'load'));
-                return null;
-            }
+            return loadKey(key);
         }
 
         async function saveToStorage(key, value) {
-            try {
-                const response = await window.electronAPI.setUserData(key, value);
-                if (!response.success) {
-                    showErrorToast(friendlyErrorMessage(response.error, 'save'));
-                    return false;
-                }
-                return true;
-            } catch (err) {
-                showErrorToast(friendlyErrorMessage(err.message, 'save'));
-                return false;
-            }
+            return saveKey(key, value);
         }
 
         async function loadCustomCategories() {
@@ -349,6 +330,7 @@
 
             const purchases = await loadPurchases();
             const incomeEntries = await loadIncome();
+            if (failedLoads.has('purchases') || failedLoads.has('income')) return null;
             const todayStr = todayISO();
             const isBeforeStart = todayStr < data.startDate;
             const isAfterEnd = todayStr > data.endDate;
@@ -810,36 +792,6 @@
         congratsModalOverlay.addEventListener('click', (e) => {
             if (e.target === congratsModalOverlay) congratsModalOverlay.classList.remove('visible');
         });
-
-        let errorToastTimer = null;
-
-        function friendlyErrorMessage(rawMessage, action) {
-            const msg = (rawMessage || '').toLowerCase();
-            const isNetworkError = msg.includes('fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('offline') || msg === '';
-            if (isNetworkError) {
-                return action === 'save'
-                    ? "Couldn't save — check your internet connection and try again."
-                    : "Couldn't load your data — check your internet connection.";
-            }
-            return action === 'save'
-                ? `Couldn't save: ${rawMessage}`
-                : `Couldn't load your data: ${rawMessage}`;
-        }
-
-        function showErrorToast(message) {
-            const toast = document.getElementById('errorToast');
-            if (!toast) return;
-            toast.querySelector('span').innerText = message;
-            toast.classList.add('visible');
-            clearTimeout(errorToastTimer);
-            errorToastTimer = setTimeout(hideErrorToast, 6000);
-        }
-
-        function hideErrorToast() {
-            const toast = document.getElementById('errorToast');
-            if (toast) toast.classList.remove('visible');
-            clearTimeout(errorToastTimer);
-        }
 
         document.getElementById('errorToastCloseBtn').addEventListener('click', hideErrorToast);
 

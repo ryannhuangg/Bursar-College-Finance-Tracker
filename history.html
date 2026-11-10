@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expense History - College Finance Tracker</title>
     <link rel="stylesheet" href="history.css">
+    <script src="connection.js"></script>
     <script src="currency.js"></script>
 </head>
 <body>
@@ -359,6 +360,11 @@
             affordError.innerText = '';
 
             const stats = await getFinancialStats();
+            if (!stats && failedLoads.size) {
+                showAffordVerdict('#f59e0b', 'Cannot Calculate', "Couldn't load your data. Check your connection and try again.");
+                return;
+            }
+
             if (!stats || stats.isBreak) {
                 showAffordVerdict('#f59e0b', 'Cannot Calculate', 'You are not currently in an active semester.');
                 return;

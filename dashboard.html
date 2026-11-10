@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - College Finance Tracker</title>
     <link rel="stylesheet" href="dashboard.css">
+    <script src="connection.js"></script>
     <script src="currency.js"></script>
 </head>
 <body>
@@ -302,7 +303,7 @@
             </div>
         `;
 
-        const setupPrompt = (title, desc, button = `<button class="setup-prompt-btn" onclick="window.electronAPI.changePage('setup.html')">Get Started</button>`) => `
+        const rawSetupPrompt = (title, desc, button = `<button class="setup-prompt-btn" onclick="window.electronAPI.changePage('setup.html')">Get Started</button>`) => `
             <div class="setup-prompt">
                 <div>
                     <span class="setup-prompt-title">${title}</span>
@@ -311,6 +312,10 @@
                 ${button}
             </div>
         `;
+
+        const setupPrompt = (title, desc, button) => failedLoads.size
+            ? rawSetupPrompt("Couldn't load your data", 'Check your connection and try again.', `<button class="setup-prompt-btn" onclick="location.reload()">Retry</button>`)
+            : rawSetupPrompt(title, desc, button);
 
         const recentTable = (headings, rows) => `
             <div class="recent-table-wrapper">
@@ -390,8 +395,7 @@
         }
 
         async function loadSteadyIncome() {
-            const response = await window.electronAPI.getUserData('steady_income');
-            const value = response.success ? response.value : null;
+            const value = await loadKey('steady_income');
             return value?.payAmount && value?.startDate ? value : null;
         }
 
@@ -649,8 +653,7 @@
         }
 
         async function loadGoalData() {
-            const response = await window.electronAPI.getUserData('purchase_goal');
-            const value = response.success ? response.value : null;
+            const value = await loadKey('purchase_goal');
             if (!value) return null;
             if (Array.isArray(value.goals)) return value;
             return value.name ? { goals: [value] } : null;
@@ -1304,7 +1307,7 @@
 
             const stats = await getFinancialStats();
             if (!stats) {
-                affordError.innerText = 'Set up your semester first to use this tool.';
+                affordError.innerText = failedLoads.size ? "Couldn't load your data. Check your connection and try again." : 'Set up your semester first to use this tool.';
                 return;
             }
 

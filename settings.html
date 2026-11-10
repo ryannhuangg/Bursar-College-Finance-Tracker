@@ -9,6 +9,7 @@
     <title>Settings - College Finance Tracker</title>
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="settings.css">
+    <script src="connection.js"></script>
 </head>
 <body>
     <div class="glow-container">
@@ -380,22 +381,20 @@
         const currencyStatus = document.getElementById('currencyStatus');
 
         async function loadCurrency() {
-            const result = await window.electronAPI.getUserData('currency');
-            if (result.success && result.value) {
-                currencySelect.value = result.value;
-            }
+            const value = await loadKey('currency');
+            if (value) currencySelect.value = value;
         }
         loadCurrency();
 
         saveCurrencyBtn.addEventListener('click', async () => {
             setStatus(currencyStatus, 'Saving...', false);
-            const response = await window.electronAPI.setUserData('currency', currencySelect.value);
+            const saved = await saveKey('currency', currencySelect.value);
 
-            if (response.success) {
+            if (saved) {
                 localStorage.setItem('currencyCode', currencySelect.value);
                 setStatus(currencyStatus, 'Currency saved. It will be reflected across the app.', false);
             } else {
-                setStatus(currencyStatus, response.error, true);
+                setStatus(currencyStatus, "Couldn't save. Check your connection and try again.", true);
             }
         });
 
@@ -403,8 +402,9 @@
         const soundStatus = document.getElementById('soundStatus');
 
         async function loadSoundSetting() {
-            const result = await window.electronAPI.getUserData('soundsMuted');
-            const muted = result.success && result.value === true;
+            const value = await loadKey('soundsMuted');
+            if (failedLoads.has('soundsMuted')) return;
+            const muted = value === true;
             muteSoundsToggle.checked = muted;
             localStorage.setItem('soundsMuted', muted ? 'true' : 'false');
         }
@@ -414,11 +414,11 @@
             const muted = muteSoundsToggle.checked;
             localStorage.setItem('soundsMuted', muted ? 'true' : 'false');
 
-            const response = await window.electronAPI.setUserData('soundsMuted', muted);
-            if (response.success) {
+            const saved = await saveKey('soundsMuted', muted);
+            if (saved) {
                 setStatus(soundStatus, muted ? 'All sounds muted.' : 'Sounds enabled.', false);
             } else {
-                setStatus(soundStatus, response.error, true);
+                setStatus(soundStatus, "Couldn't save. Check your connection and try again.", true);
             }
         });
 
@@ -426,28 +426,31 @@
         const noBudgetStatus = document.getElementById('noBudgetStatus');
 
         async function loadBudgetSetting() {
-            const result = await window.electronAPI.getUserData('financial_setup');
-            if (result.success && result.value) {
-                noBudgetToggle.checked = !!result.value.noFixedBudget;
+            const value = await loadKey('financial_setup');
+            if (value) {
+                noBudgetToggle.checked = !!value.noFixedBudget;
             } else {
                 noBudgetToggle.disabled = true;
-                setStatus(noBudgetStatus, 'Complete your financial setup first.', true);
+                setStatus(noBudgetStatus, failedLoads.has('financial_setup') ? "Couldn't load your setup. Check your connection." : 'Complete your financial setup first.', true);
             }
         }
         loadBudgetSetting();
 
         noBudgetToggle.addEventListener('change', async () => {
-            const result = await window.electronAPI.getUserData('financial_setup');
-            if (!result.success || !result.value) return;
-
             const noFixedBudget = noBudgetToggle.checked;
-            const response = await window.electronAPI.setUserData('financial_setup', { ...result.value, noFixedBudget });
+            const setup = await loadKey('financial_setup');
+            if (!setup) {
+                noBudgetToggle.checked = !noFixedBudget;
+                setStatus(noBudgetStatus, "Couldn't load your setup. Check your connection and try again.", true);
+                return;
+            }
+            const saved = await saveKey('financial_setup', { ...setup, noFixedBudget });
 
-            if (response.success) {
+            if (saved) {
                 setStatus(noBudgetStatus, noFixedBudget ? "Switched to tracking-only mode — no daily limit or goals." : 'Fixed budget re-enabled.', false);
             } else {
                 noBudgetToggle.checked = !noFixedBudget;
-                setStatus(noBudgetStatus, response.error, true);
+                setStatus(noBudgetStatus, "Couldn't save. Check your connection and try again.", true);
             }
         });
 

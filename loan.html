@@ -9,6 +9,7 @@
     <title>Loans & Tuition - College Finance Tracker</title>
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="loan.css">
+    <script src="connection.js"></script>
     <script src="currency.js"></script>
 </head>
 <body>
@@ -259,7 +260,7 @@
                 const liabilities = await loadLiabilities();
                 const insertAt = Math.max(0, Math.min(lastDeletedLiabilityIndex, liabilities.length));
                 liabilities.splice(insertAt, 0, lastDeletedLiability);
-                await saveLiabilities(liabilities);
+                if (!(await saveLiabilities(liabilities))) return;
 
                 loadLoansPage();
 
@@ -269,7 +270,7 @@
                 const purchases = await loadPurchases();
                 const insertAt = Math.max(0, Math.min(lastDeletedPaymentIndex, purchases.length));
                 purchases.splice(insertAt, 0, lastDeletedPayment);
-                await savePurchases(purchases);
+                if (!(await savePurchases(purchases))) return;
 
                 loadLoansPage();
                 if (historyModalOverlay.classList.contains('visible')) {
@@ -282,22 +283,18 @@
             if (undoTimeout) clearTimeout(undoTimeout);
         });
         async function loadLiabilities() {
-            const response = await window.electronAPI.getUserData('liabilities');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
+            const value = await loadKey('liabilities');
+            return Array.isArray(value) ? value : [];
         }
 
-        async function saveLiabilities(liabilities) {
-            await window.electronAPI.setUserData('liabilities', liabilities);
-        }
+        const saveLiabilities = (liabilities) => saveKey('liabilities', liabilities);
 
         async function loadPurchases() {
-            const response = await window.electronAPI.getUserData('purchases');
-            return (response.success && Array.isArray(response.value)) ? response.value : [];
+            const value = await loadKey('purchases');
+            return Array.isArray(value) ? value : [];
         }
 
-        async function savePurchases(purchases) {
-            await window.electronAPI.setUserData('purchases', purchases);
-        }
+        const savePurchases = (purchases) => saveKey('purchases', purchases);
 
         function calculateLoanState(liability, purchases) {
             const rate = Number(liability.interestRate) || 0;
@@ -548,7 +545,7 @@
                     lastDeletedLiabilityIndex = lIndex;
 
                     liabilities.splice(lIndex, 1);
-                    await saveLiabilities(liabilities);
+                    if (!(await saveLiabilities(liabilities))) return;
                     loadLoansPage();
                     showUndoToast('loan');
                 });
@@ -665,10 +662,11 @@
                 });
             }
 
-            await saveLiabilities(liabilities);
+            const loanSaved = await saveLiabilities(liabilities);
 
             submitBtn.disabled = false;
             submitBtn.innerText = isEditing ? 'Save Changes' : 'Save Loan';
+            if (!loanSaved) return;
             closeLoanModal();
             loadLoansPage();
         });
@@ -777,13 +775,14 @@
                     liabilityId: payingLoanId
                 });
             }
-            await savePurchases(purchases);
+            const paymentSaved = await savePurchases(purchases);
 
             const paidLoan = payingLoanCache;
             const newBalance = paidLoan ? calculateCurrentBalance(paidLoan, purchases) : null;
 
             submitBtn.disabled = false;
             submitBtn.innerText = isEditing ? 'Save Changes' : 'Log Payment';
+            if (!paymentSaved) return;
             closePaymentModal();
             loadLoansPage();
             if (paidLoan && newBalance != null) {
@@ -988,7 +987,7 @@
                     lastDeletedPaymentIndex = pIndex;
 
                     purchases.splice(pIndex, 1);
-                    await savePurchases(purchases);
+                    if (!(await savePurchases(purchases))) return;
                     await renderHistoryTable();
                     loadLoansPage();
                     showUndoToast('payment');

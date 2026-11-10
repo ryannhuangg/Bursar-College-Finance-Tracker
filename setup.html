@@ -9,6 +9,7 @@
     <title>Setup - College Finance Tracker</title>
     <link rel="stylesheet" href="setup.css">
     <link rel="stylesheet" href="settings.css">
+    <script src="connection.js"></script>
     <script src="currency.js"></script>
 </head>
 <body>
@@ -473,9 +474,8 @@
         }); 
 
         function loadExistingData(callback) {
-            window.electronAPI.getUserData('financial_setup').then((response) => {
-                if (response.success && response.value) {
-                    const saved = response.value;
+            loadKey('financial_setup').then((saved) => {
+                if (saved) {
                     state.startDate = saved.startDate || '';
                     state.endDate = saved.endDate || '';
                     startDateInput.value = state.startDate;
@@ -500,8 +500,7 @@
                     document.getElementById('nofixedbudgettoggle').checked = state.noFixedBudget;
                     applyNoBudgetVisualState(state.noFixedBudget);
                 }
-                window.electronAPI.getUserData('steady_income').then((steadyResponse) => {
-                    const steady = (steadyResponse.success && steadyResponse.value) ? steadyResponse.value : null;
+                loadKey('steady_income').then((steady) => {
                     state.weeklyIncome = steady ? toWeeklyEquivalent(steady.payAmount, steady.payFrequency) : 0;
                     if (callback) callback();
                 }).catch(() => {
@@ -782,7 +781,11 @@
 
         finishBtn.addEventListener('click', async () => {
             finishBtn.disabled = true;
-            await window.electronAPI.setUserData('financial_setup', state);
+            const saved = await saveKey('financial_setup', state);
+            if (!saved) {
+                finishBtn.disabled = false;
+                return;
+            }
 
             document.getElementById('setupCompleteOverlay').classList.add('visible');
             fireConfetti();

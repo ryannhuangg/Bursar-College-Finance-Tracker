@@ -132,32 +132,11 @@ function calculateWeightRange(startDateObj, endDateObj, weightFactor) {
 }
 
 async function loadList(key) {
-    try {
-        const response = await window.electronAPI.getUserData(key);
-        if (!response.success) {
-            showErrorToast(friendlyErrorMessage(response.error, 'load'));
-            return [];
-        }
-        return Array.isArray(response.value) ? response.value : [];
-    } catch (err) {
-        showErrorToast(friendlyErrorMessage(err.message, 'load'));
-        return [];
-    }
+    const value = await loadKey(key);
+    return Array.isArray(value) ? value : [];
 }
 
-async function saveList(key, value) {
-    try {
-        const response = await window.electronAPI.setUserData(key, value);
-        if (!response.success) {
-            showErrorToast(friendlyErrorMessage(response.error, 'save'));
-            return false;
-        }
-        return true;
-    } catch (err) {
-        showErrorToast(friendlyErrorMessage(err.message, 'save'));
-        return false;
-    }
-}
+const saveList = saveKey;
 
 const loadPurchases = () => loadList('purchases');
 const loadIncome = () => loadList('income');
@@ -206,36 +185,6 @@ function pieSvg(slices, total, stroke) {
         return `<path d="M 0 0 L ${from} A 1 1 0 ${share > 0.5 ? 1 : 0} 1 ${point(angle)} Z" stroke="${stroke}" stroke-width="0.015" ${attrs}></path>`;
     }).join('');
     return `<svg viewBox="-1 -1 2 2" class="daily-pie-chart"><circle r="1" cx="0" cy="0" fill="#26262b"></circle>${shapes}</svg>`;
-}
-
-let errorToastTimer = null;
-
-function friendlyErrorMessage(rawMessage, action) {
-    const msg = (rawMessage || '').toLowerCase();
-    const isNetworkError = msg.includes('fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('offline') || msg === '';
-    if (isNetworkError) {
-        return action === 'save'
-            ? "Couldn't save — check your internet connection and try again."
-            : "Couldn't load your data — check your internet connection.";
-    }
-    return action === 'save'
-        ? `Couldn't save: ${rawMessage}`
-        : `Couldn't load your data: ${rawMessage}`;
-}
-
-function showErrorToast(message) {
-    const toast = document.getElementById('errorToast');
-    if (!toast) return;
-    toast.querySelector('span').innerText = message;
-    toast.classList.add('visible');
-    clearTimeout(errorToastTimer);
-    errorToastTimer = setTimeout(hideErrorToast, 6000);
-}
-
-function hideErrorToast() {
-    const toast = document.getElementById('errorToast');
-    if (toast) toast.classList.remove('visible');
-    clearTimeout(errorToastTimer);
 }
 
 function showUndoToast(message, action) {
@@ -441,11 +390,11 @@ function getFinancialStats() {
 }
 
 async function computeFinancialStats() {
-    const setupResponse = await window.electronAPI.getUserData('financial_setup');
-    if (!setupResponse.success || !setupResponse.value) return null;
+    const data = await loadKey('financial_setup');
+    if (!data) return null;
 
-    const data = setupResponse.value;
     const [purchases, incomeEntries] = await Promise.all([loadPurchases(), loadIncome()]);
+    if (failedLoads.has('purchases') || failedLoads.has('income')) return null;
     const todayStr = todayISO();
     const isBeforeStart = todayStr < data.startDate;
     const isBreak = isBeforeStart || todayStr > data.endDate;

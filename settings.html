@@ -52,6 +52,8 @@
 
         <div class="settings-grid">
 
+            <div class="settings-section-title">Account</div>
+
             <section class="settings-card">
                 <span class="settings-card-title">Email Address</span>
                 <p class="settings-card-desc">Currently signed in as <strong id="currentEmailLabel">—</strong></p>
@@ -109,6 +111,9 @@
                 <p class="settings-status" id="googleStatus"></p>
             </section>
 
+
+            <div class="settings-section-title">Other</div>
+
             <section class="settings-card">
                 <span class="settings-card-title">Currency</span>
                 <p class="settings-card-desc">Choose the currency shown across the app.</p>
@@ -158,6 +163,13 @@
                 </label>
 
                 <p class="settings-status" id="noBudgetStatus"></p>
+            </section>
+
+            <section class="settings-card">
+                <span class="settings-card-title">Export Data</span>
+                <p class="settings-card-desc">Download all your purchases and income as one CSV file.</p>
+                <button class="settings-save-btn" id="exportCsvBtn">Export CSV</button>
+                <p class="settings-status" id="exportStatus"></p>
             </section>
 
             <section class="settings-card danger-card">
@@ -529,6 +541,56 @@
                     confirmModalError.innerText = response.error;
                 }
             }
+        });
+
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const exportStatus = document.getElementById('exportStatus');
+
+        const csvText = (value) => {
+            const text = String(value ?? '');
+            const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
+            return `"${safe.replace(/"/g, '""')}"`;
+        };
+
+        exportCsvBtn.addEventListener('click', async () => {
+            exportCsvBtn.disabled = true;
+            setStatus(exportStatus, 'Preparing export...', false);
+
+            const [purchases, income] = await Promise.all([loadKey('purchases'), loadKey('income')]);
+            exportCsvBtn.disabled = false;
+
+            if (failedLoads.has('purchases') || failedLoads.has('income')) {
+                setStatus(exportStatus, "Couldn't load your data. Check your connection and try again.", true);
+                return;
+            }
+
+            const rows = [
+                ...(Array.isArray(purchases) ? purchases : []).map((p) => ['Purchase', p.date, p.description, p.tag, p.amount, p.reimbursement]),
+                ...(Array.isArray(income) ? income : []).map((i) => ['Income', i.date, i.description, i.tag, i.amount, ''])
+            ].sort((a, b) => String(b[1] ?? '').localeCompare(String(a[1] ?? '')));
+
+            if (!rows.length) {
+                setStatus(exportStatus, 'Nothing to export yet.', true);
+                return;
+            }
+
+            const lines = [
+                'Type,Date,Description,Category,Amount,Reimbursement',
+                ...rows.map(([type, date, description, tag, amount, reimbursement]) =>
+                    [type, date ?? '', csvText(description), csvText(tag), amount ?? '', reimbursement ?? ''].join(','))
+            ];
+
+            const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `bursar-export-${new Date().toLocaleDateString('en-CA')}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            setStatus(exportStatus, `Exported ${rows.length} entries.`, false);
         });
     </script>
 </body>

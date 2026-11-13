@@ -4,6 +4,20 @@
     gap: 20px;
 }
 
+.settings-section-title {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #a1a1aa;
+}
+
+.settings-section-title:first-child {
+    margin-top: 0;
+}
+
 .settings-card {
     background-color: #1a1a1e;
     border: 1px solid #26262b;
